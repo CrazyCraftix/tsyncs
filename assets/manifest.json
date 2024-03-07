@@ -1,6 +1,6 @@
 {
-  "name": "egui Template PWA",
-  "short_name": "egui-template-pwa",
+  "name": "tsyncs",
+  "short_name": "tsyncs",
   "icons": [
     {
       "src": "./icon-256.png",
