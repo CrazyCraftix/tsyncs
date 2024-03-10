@@ -20,7 +20,7 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "tsyncs",
         native_options,
-        Box::new(|cc| Box::new(tsyncs::TemplateApp::new(cc))),
+        Box::new(|cc| Box::new(tsyncs::App::new(cc))),
     )
 }
 
@@ -37,7 +37,7 @@ fn main() {
             .start(
                 "the_canvas_id", // hardcode it
                 web_options,
-                Box::new(|cc| Box::new(tsyncs::TemplateApp::new(cc))),
+                Box::new(|cc| Box::new(tsyncs::App::new(cc))),
             )
             .await
             .expect("failed to start eframe");
