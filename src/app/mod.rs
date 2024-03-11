@@ -1,12 +1,8 @@
-use self::graph_view::GraphView;
-
-mod graph_view;
+mod graphics;
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
-    #[serde(skip)]
-    graph_view: GraphView,
 }
 
 impl App {
@@ -37,7 +33,7 @@ impl eframe::App for App {
 
         // main panel
         egui::CentralPanel::default().show(ctx, |ui| {
-            self.graph_view.ui(ui);
+            ui.add(graphics::GraphView::new(/*&mut graph*/));
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 egui::warn_if_debug_build(ui);
             });
