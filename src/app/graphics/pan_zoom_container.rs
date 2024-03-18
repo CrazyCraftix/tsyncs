@@ -7,6 +7,7 @@ pub struct PanZoomContainer {
     min_size: Vec2,
 }
 
+#[allow(dead_code)]
 impl PanZoomContainer {
     /// create a new [`PanZoomContainer`]
     pub fn new() -> Self {
@@ -35,7 +36,11 @@ impl PanZoomContainer {
 }
 
 impl PanZoomContainer {
-    pub fn show<R>(self, ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> egui::InnerResponse<R> {
+    pub fn show<R>(
+        self,
+        ui: &mut egui::Ui,
+        add_contents: impl FnOnce(&mut egui::Ui) -> R,
+    ) -> egui::InnerResponse<R> {
         let id = ui.id().with(self.id_source);
 
         // allocate space and check for interactions
@@ -51,13 +56,18 @@ impl PanZoomContainer {
         // draw on a transformed layer inside a child ui, decoupled from the surrounding ui
         // this seems to be the cleanest way to get this to work
         let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
-        let inner_response = ui.with_layer_id(LayerId::new(egui::Order::Middle, id), |ui| {
-            ui.set_clip_rect(state.transform.inverse() * rect);
-            ui.ctx().set_transform_layer(ui.layer_id(), state.transform);
-            add_contents(ui)
-        }).inner;
+        let inner_response = ui
+            .with_layer_id(LayerId::new(egui::Order::Foreground, id), |ui| {
+                ui.set_clip_rect(state.transform.inverse() * rect);
+                ui.ctx().set_transform_layer(ui.layer_id(), state.transform);
+                add_contents(ui)
+            })
+            .inner;
 
-        egui::InnerResponse { inner: inner_response, response }
+        egui::InnerResponse {
+            inner: inner_response,
+            response,
+        }
     }
 }
 
@@ -81,7 +91,8 @@ impl PanZoomContainerState {
     }
 
     fn handle_zoom_pan(&mut self, response: &egui::Response) {
-        if response.hovered() {
+        let mouse_position = response.ctx.input(|i| i.pointer.latest_pos());
+        if mouse_position.map_or(true, |pos| response.interact_rect.contains(pos)) {
             // zoom
             let zoom_delta = response.ctx.input(|i| i.zoom_delta());
             if zoom_delta != 1. {
@@ -106,7 +117,7 @@ impl PanZoomContainerState {
         }
 
         // pan
-        if response.dragged() {
+        if !response.ctx.input(|i| i.pointer.secondary_down()) {
             self.transform.translation += response.drag_delta();
         }
 
