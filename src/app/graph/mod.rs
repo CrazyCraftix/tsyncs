@@ -1,117 +1,95 @@
-#[derive(Default, serde::Deserialize, serde::Serialize)]
-pub struct Node {
-    pos: egui::Pos2,
-    task_name: String,
-    activity_name: String,
-    duration: String,
+mod activity_node;
+mod mutex_node;
+
+pub use activity_node::ActivityNode;
+pub use mutex_node::MutexNode;
+
+#[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ActivityNodeId(usize);
+
+#[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MutexNodeId(usize);
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+struct ConnectedActivityNode {
+    activity_node: ActivityNode,
+    inputs: Vec<MutexNodeId>,
+    outputs: Vec<MutexNodeId>,
 }
 
-impl Node {
-    pub fn new(pos: egui::Pos2) -> Self {
-        Self {
-            pos,
-            ..Default::default()
-        }
-    }
+#[derive(Default, serde::Deserialize, serde::Serialize)]
+pub struct Graph {
+    activity_nodes: std::collections::HashMap<ActivityNodeId, ConnectedActivityNode>,
+    mutex_nodes: std::collections::HashMap<MutexNodeId, MutexNode>,
+    next_activity_node_id: ActivityNodeId,
+    next_mutex_node_id: MutexNodeId,
+}
+
+impl Graph {
     pub fn draw(&mut self, ui: &mut egui::Ui) {
-        let style = ui.ctx().style().visuals.widgets.inactive;
+        self.activity_nodes.iter_mut().for_each(|n| {
+            n.1.activity_node.draw(
+                ui,
+                n.1.inputs
+                    .iter()
+                    .filter_map(|mutex_id| self.mutex_nodes.get(mutex_id))
+                    .collect(),
+                n.1.outputs
+                    .iter()
+                    .filter_map(|mutex_id| self.mutex_nodes.get(mutex_id))
+                    .collect(),
+            )
+        });
+        self.mutex_nodes.iter_mut().for_each(|n| n.1.draw(ui));
+    }
 
-        let text_field_width = 100.;
-
-        let task_name_height = 20.;
-        let activity_name_height = 18.;
-        let duration_height = 15.;
-
-        let task_name_font = egui::FontId::monospace(15.);
-        let activity_name_font = egui::FontId::monospace(12.5);
-        let duration_font = egui::FontId::proportional(12.5);
-
-        let outer_padding = egui::vec2(6., 4.);
-        let outer_size_without_padding =
-            egui::vec2(text_field_width, task_name_height + activity_name_height);
-        let outer_size = outer_size_without_padding + 2. * outer_padding;
-        let outer_rect = egui::Rect::from_center_size(self.pos, outer_size);
-        let outer_rounding = 10.;
-        let circle_position = outer_rect.right_top() + outer_padding * egui::vec2(-1., 0.5);
-        let circle_radius = outer_size.y / 3.;
-        let circle_hitbox =
-            egui::Rect::from_center_size(circle_position, egui::Vec2::splat(2. * circle_radius));
-
-        // for debugging
-        let frame = false;
-
-        let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
-        ui.set_enabled(!ui.ctx().input(|i| i.pointer.secondary_down()));
-
-        ui.painter()
-            .rect_filled(outer_rect, outer_rounding, style.bg_fill);
-
-        let response_outer = ui.allocate_rect(outer_rect, egui::Sense::click_and_drag());
-        let response_circle = ui.allocate_rect(circle_hitbox, egui::Sense::click_and_drag());
-
-        let response_task_name = ui.put(
-            egui::Rect::from_center_size(
-                self.pos
-                    - egui::vec2(
-                        (circle_radius + outer_padding.x / 2.) / 2.,
-                        (outer_size_without_padding.y - task_name_height) / 2.,
-                    ),
-                egui::vec2(
-                    text_field_width - circle_radius - outer_padding.x / 2.,
-                    task_name_height,
-                ),
-            ),
-            egui::TextEdit::singleline(&mut self.task_name)
-                .margin(egui::Margin::ZERO)
-                .frame(frame)
-                .vertical_align(egui::Align::Center)
-                .font(task_name_font),
+    pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
+        let id = self.next_activity_node_id;
+        self.activity_nodes.insert(
+            id,
+            ConnectedActivityNode {
+                activity_node,
+                ..Default::default()
+            },
         );
-        let response_activity_name = ui.put(
-            egui::Rect::from_center_size(
-                self.pos
-                    + egui::vec2(
-                        0.,
-                        (outer_size_without_padding.y - activity_name_height) / 2.,
-                    ),
-                egui::vec2(text_field_width, activity_name_height),
-            ),
-            egui::TextEdit::singleline(&mut self.activity_name)
-                .margin(egui::Margin::ZERO)
-                .frame(frame)
-                .vertical_align(egui::Align::Center)
-                .font(activity_name_font),
-        );
+        self.next_activity_node_id = ActivityNodeId(id.0 + 1);
+        id
+    }
 
-        ui.painter()
-            .rect_stroke(outer_rect, outer_rounding, style.fg_stroke);
-        ui.painter()
-            .circle_filled(circle_position, circle_radius, style.bg_fill);
-        ui.painter()
-            .circle_stroke(circle_position, circle_radius, style.fg_stroke);
+    pub fn add_mutex_node(&mut self, mutex_node: MutexNode) -> MutexNodeId {
+        let id = self.next_mutex_node_id;
+        self.mutex_nodes.insert(id, mutex_node);
+        self.next_mutex_node_id = MutexNodeId(id.0 + 1);
+        id
+    }
 
-        let response_duration = ui.put(
-            egui::Rect::from_center_size(circle_position, egui::Vec2::splat(duration_height)),
-            egui::TextEdit::singleline(&mut self.duration)
-                .margin(egui::Margin::ZERO)
-                .frame(frame)
-                .vertical_align(egui::Align::Center)
-                .horizontal_align(egui::Align::Center)
-                .font(duration_font),
-        );
+    pub fn connect_mutex_to_activity(
+        &mut self,
+        mutex_node_id: MutexNodeId,
+        activity_node_id: ActivityNodeId,
+    ) -> bool {
+        self.mutex_nodes.get(&mutex_node_id).is_some()
+            && self
+                .activity_nodes
+                .get_mut(&activity_node_id)
+                .map_or(false, |a| {
+                    a.inputs.push(mutex_node_id);
+                    true
+                })
+    }
 
-        if !ui.ctx().input(|i| i.pointer.secondary_down()) {
-            let response_union = response_outer
-                | response_circle
-                | response_task_name.clone()
-                | response_activity_name.clone()
-                | response_duration.clone();
-            if response_union.dragged() {
-                self.pos += response_union.drag_delta();
-                response_task_name.surrender_focus();
-                response_activity_name.surrender_focus();
-                response_duration.surrender_focus();
-            }
-        }
+    pub fn connect_activity_to_mutex(
+        &mut self,
+        activity_node_id: ActivityNodeId,
+        mutex_node_id: MutexNodeId,
+    ) -> bool {
+        self.mutex_nodes.get(&mutex_node_id).is_some()
+            && self
+                .activity_nodes
+                .get_mut(&activity_node_id)
+                .map_or(false, |a| {
+                    a.inputs.push(mutex_node_id);
+                    true
+                })
     }
 }

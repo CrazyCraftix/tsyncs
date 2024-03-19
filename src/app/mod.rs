@@ -4,17 +4,18 @@ mod graphics;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
-    graph: Vec<graph::Node>,
+    graph: graph::Graph,
 }
 
 impl Default for App {
     fn default() -> Self {
-        Self {
-            graph: vec![
-                graph::Node::new(egui::pos2(0., 0.)),
-                graph::Node::new(egui::pos2(100., 100.)),
-            ],
-        }
+        let mut graph = graph::Graph::default();
+        let activity_1 = graph.add_activiy_node(graph::ActivityNode::new(egui::pos2(0., 0.)));
+        let activity_2 = graph.add_activiy_node(graph::ActivityNode::new(egui::pos2(100., 100.)));
+        let mutex_1 = graph.add_mutex_node(graph::MutexNode::new(egui::pos2(50., 50.)));
+        graph.connect_mutex_to_activity(mutex_1, activity_1);
+        graph.connect_activity_to_mutex(activity_2, mutex_1);
+        Self { graph }
     }
 }
 
@@ -57,13 +58,9 @@ impl eframe::App for App {
         // main panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
-                graphics::PanZoomContainer::new()
-                    .id_source("abc")
-                    .show(ui, |ui| {
-                        for node in &mut self.graph {
-                            node.draw(ui);
-                        }
-                    });
+                graphics::PanZoomContainer::new().show(ui, |ui| {
+                    self.graph.draw(ui);
+                });
             });
         });
     }
