@@ -6,15 +6,20 @@ pub use mutex_node::MutexNode;
 
 #[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActivityNodeId(usize);
-
 #[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutexNodeId(usize);
+
+#[derive(PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ConnectionType {
+    MutexToActivity,
+    ActivityToMutex,
+    TwoWay,
+}
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct ConnectedActivityNode {
     activity_node: ActivityNode,
-    inputs: Vec<MutexNodeId>,
-    outputs: Vec<MutexNodeId>,
+    connections: std::collections::HashMap<MutexNodeId, ConnectionType>,
 }
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
@@ -30,13 +35,15 @@ impl Graph {
         self.activity_nodes.iter_mut().for_each(|n| {
             n.1.activity_node.draw(
                 ui,
-                n.1.inputs
+                &n.1.connections
                     .iter()
-                    .filter_map(|mutex_id| self.mutex_nodes.get(mutex_id))
-                    .collect(),
-                n.1.outputs
-                    .iter()
-                    .filter_map(|mutex_id| self.mutex_nodes.get(mutex_id))
+                    .filter_map(|connection| {
+                        if let Some(mutex_node) = self.mutex_nodes.get(connection.0) {
+                            Some((mutex_node, connection.1))
+                        } else {
+                            None
+                        }
+                    })
                     .collect(),
             )
         });
@@ -63,33 +70,29 @@ impl Graph {
         id
     }
 
-    pub fn connect_mutex_to_activity(
-        &mut self,
-        mutex_node_id: MutexNodeId,
-        activity_node_id: ActivityNodeId,
-    ) -> bool {
-        self.mutex_nodes.get(&mutex_node_id).is_some()
-            && self
-                .activity_nodes
-                .get_mut(&activity_node_id)
-                .map_or(false, |a| {
-                    a.inputs.push(mutex_node_id);
-                    true
-                })
-    }
-
-    pub fn connect_activity_to_mutex(
+    pub fn connect(
         &mut self,
         activity_node_id: ActivityNodeId,
         mutex_node_id: MutexNodeId,
+        connection_type: ConnectionType,
     ) -> bool {
-        self.mutex_nodes.get(&mutex_node_id).is_some()
-            && self
-                .activity_nodes
-                .get_mut(&activity_node_id)
-                .map_or(false, |a| {
-                    a.inputs.push(mutex_node_id);
+        self.mutex_nodes.contains_key(&mutex_node_id)
+            && self.activity_nodes.get_mut(&activity_node_id).map_or(
+                false,
+                |connected_activity_node| {
+                    if let Some(existing_connection_type) =
+                        connected_activity_node.connections.get_mut(&mutex_node_id)
+                    {
+                        if *existing_connection_type != connection_type {
+                            *existing_connection_type = ConnectionType::TwoWay;
+                        }
+                    } else {
+                        connected_activity_node
+                            .connections
+                            .insert(mutex_node_id, connection_type);
+                    }
                     true
-                })
+                },
+            )
     }
 }

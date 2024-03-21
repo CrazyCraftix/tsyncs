@@ -13,8 +13,8 @@ impl Default for App {
         let activity_1 = graph.add_activiy_node(graph::ActivityNode::new(egui::pos2(0., 0.)));
         let activity_2 = graph.add_activiy_node(graph::ActivityNode::new(egui::pos2(100., 100.)));
         let mutex_1 = graph.add_mutex_node(graph::MutexNode::new(egui::pos2(50., 50.)));
-        graph.connect_mutex_to_activity(mutex_1, activity_1);
-        graph.connect_activity_to_mutex(activity_2, mutex_1);
+        graph.connect(activity_1, mutex_1, graph::ConnectionType::TwoWay);
+        graph.connect(activity_2, mutex_1, graph::ConnectionType::MutexToActivity);
         Self { graph }
     }
 }
