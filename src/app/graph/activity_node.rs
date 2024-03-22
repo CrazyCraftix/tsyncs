@@ -3,7 +3,14 @@ pub struct ActivityNode {
     pub pos: egui::Pos2,
     pub task_name: String,
     pub activity_name: String,
-    pub duration: String,
+    pub duration: u32,
+    pub remaining_duration: u32,
+
+    response_outer_id: Option<egui::Id>,
+    response_circle_id: Option<egui::Id>,
+    response_task_name_id: Option<egui::Id>,
+    response_activity_name_id: Option<egui::Id>,
+    response_duration_id: Option<egui::Id>,
 }
 
 impl ActivityNode {
@@ -14,8 +21,41 @@ impl ActivityNode {
         }
     }
 
+    pub fn interact(&mut self, ui: &egui::Ui) {
+        if let (
+            Some(Some(response_outer)),
+            Some(Some(response_circle)),
+            Some(Some(response_task_name)),
+            Some(Some(response_activity_name)),
+            Some(Some(response_duration)),
+        ) = (
+            self.response_outer_id
+                .map(|response_outer_id| ui.ctx().read_response(response_outer_id)),
+            self.response_circle_id
+                .map(|response_circle_id| ui.ctx().read_response(response_circle_id)),
+            self.response_task_name_id
+                .map(|response_task_name_id| ui.ctx().read_response(response_task_name_id)),
+            self.response_activity_name_id
+                .map(|response_activity_name_id| ui.ctx().read_response(response_activity_name_id)),
+            self.response_duration_id
+                .map(|response_duration_id| ui.ctx().read_response(response_duration_id)),
+        ) {
+            if !ui.ctx().input(|i| i.pointer.secondary_down()) {
+                let response_union = response_outer
+                    | response_circle
+                    | response_task_name.clone()
+                    | response_activity_name.clone();
+                if response_union.dragged() || response_union.drag_stopped() {
+                    self.pos += response_union.drag_delta();
+                    response_task_name.surrender_focus();
+                    response_activity_name.surrender_focus();
+                }
+            }
+        }
+    }
+
     pub fn draw(&mut self, ui: &mut egui::Ui) {
-        let style = ui.ctx().style().visuals.widgets.inactive;
+        let style = ui.style().visuals.widgets.inactive;
 
         let text_field_width = 100.;
 
@@ -25,7 +65,6 @@ impl ActivityNode {
 
         let task_name_font = egui::FontId::monospace(15.);
         let activity_name_font = egui::FontId::monospace(12.5);
-        let duration_font = egui::FontId::proportional(12.5);
 
         let outer_padding = egui::vec2(6., 4.);
         let outer_size_without_padding =
@@ -42,15 +81,16 @@ impl ActivityNode {
         let frame = false;
 
         let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
-        ui.set_enabled(!ui.ctx().input(|i| i.pointer.secondary_down()));
-
-        //self.draw_connections(&mut ui, connections);
+        //ui.set_enabled(!ui.ctx().input(|i| i.pointer.secondary_down()));
 
         ui.painter()
             .rect_filled(outer_rect, outer_rounding, style.bg_fill);
 
         let response_outer = ui.allocate_rect(outer_rect, egui::Sense::click_and_drag());
+        self.response_outer_id = Some(response_outer.id);
+
         let response_circle = ui.allocate_rect(circle_hitbox, egui::Sense::click_and_drag());
+        self.response_circle_id = Some(response_circle.id);
 
         let response_task_name = ui.put(
             egui::Rect::from_center_size(
@@ -70,6 +110,8 @@ impl ActivityNode {
                 .vertical_align(egui::Align::Center)
                 .font(task_name_font),
         );
+        self.response_task_name_id = Some(response_task_name.id);
+
         let response_activity_name = ui.put(
             egui::Rect::from_center_size(
                 self.pos
@@ -85,6 +127,7 @@ impl ActivityNode {
                 .vertical_align(egui::Align::Center)
                 .font(activity_name_font),
         );
+        self.response_activity_name_id = Some(response_activity_name.id);
 
         ui.painter()
             .rect_stroke(outer_rect, outer_rounding, style.fg_stroke);
@@ -95,27 +138,17 @@ impl ActivityNode {
 
         let response_duration = ui.put(
             egui::Rect::from_center_size(circle_position, egui::Vec2::splat(duration_height)),
-            egui::TextEdit::singleline(&mut self.duration)
-                .margin(egui::Margin::ZERO)
-                .frame(frame)
-                .vertical_align(egui::Align::Center)
-                .horizontal_align(egui::Align::Center)
-                .font(duration_font),
+            //egui::TextEdit::singleline(&mut self.duration)
+            //    .margin(egui::Margin::ZERO)
+            //    .frame(frame)
+            //    .vertical_align(egui::Align::Center)
+            //    .horizontal_align(egui::Align::Center)
+            //    .font(duration_font),
+            egui::DragValue::new(&mut self.duration)
+                .update_while_editing(false)
+                .speed(0.05)
+                .clamp_range(1..=std::u32::MAX),
         );
-
-        if !ui.ctx().input(|i| i.pointer.secondary_down()) {
-            let response_union = response_outer
-                | response_circle
-                | response_task_name.clone()
-                | response_activity_name.clone()
-                | response_duration.clone();
-            if response_union.dragged() {
-                self.pos += response_union.drag_delta();
-                response_task_name.surrender_focus();
-                response_activity_name.surrender_focus();
-                response_duration.surrender_focus();
-            }
-        }
+        self.response_duration_id = Some(response_duration.id);
     }
-
 }

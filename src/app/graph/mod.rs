@@ -30,6 +30,7 @@ pub struct Graph {
     next_mutex_id: MutexNodeId,
 }
 
+// logic
 impl Graph {
     pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
         let id = self.next_activity_id;
@@ -91,6 +92,22 @@ impl Graph {
 // drawing
 impl Graph {
     pub fn draw(&mut self, ui: &mut egui::Ui) {
+        ui.style_mut().spacing.interact_size = egui::Vec2::ZERO;
+        ui.style_mut().spacing.button_padding = egui::Vec2::ZERO;
+        ui.style_mut().interaction.multi_widget_text_select = false;
+
+        // interact
+        for (_, node) in &mut self.activity_nodes {
+            node.interact(ui);
+        }
+
+        for (_, node) in &mut self.mutex_nodes {
+            node.interact(ui);
+        }
+
+
+
+        // draw
         self.connections
             .iter()
             .filter_map(|(activity_id, activity_connections)| {
