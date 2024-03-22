@@ -28,9 +28,11 @@ pub struct Graph {
 
     next_activity_id: ActivityNodeId,
     next_mutex_id: MutexNodeId,
+
+    time_since_last_tick_in_seconds: f32,
 }
 
-// logic
+// structure
 impl Graph {
     pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
         let id = self.next_activity_id;
@@ -73,6 +75,67 @@ impl Graph {
 
         true
     }
+}
+
+// simulation
+impl Graph {
+    fn tick(&mut self) {
+        for (activity_id, activity_node) in &mut self.activity_nodes {
+            if activity_node.remaining_duration > 0 {
+                continue;
+            }
+            if let Some(activity_connections) = self.connections.get(&activity_id) {
+                // check if prerequisites are met
+                let prerequisites_missing = activity_connections
+                    .iter()
+                    .filter(|(_, connection_type)| {
+                        connection_type != &&ConnectionType::ActivityToMutex
+                    })
+                    .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
+                    .find(|mutex_node| mutex_node.value <= 0)
+                    .is_some();
+
+                if prerequisites_missing {
+                    continue;
+                }
+
+                // start the node
+                activity_node.remaining_duration = activity_node.duration;
+
+                // decrement prerequisites
+                activity_connections
+                    .iter()
+                    .for_each(|(mutex_id, connection_type)| {
+                        if connection_type != &ConnectionType::ActivityToMutex {
+                            self.mutex_nodes
+                                .get_mut(mutex_id)
+                                .map(|mutex_node| mutex_node.value -= 1);
+                        }
+                    })
+            }
+        }
+
+        for (activity_id, activity_node) in &mut self.activity_nodes {
+            if activity_node.remaining_duration == 0 {
+                continue;
+            }
+            activity_node.remaining_duration -= 1;
+            if activity_node.remaining_duration == 0 {
+                if let Some(activity_connections) = self.connections.get(&activity_id) {
+                    // increment all outputs
+                    activity_connections
+                        .iter()
+                        .for_each(|(mutex_id, connection_type)| {
+                            if connection_type != &ConnectionType::MutexToActivity {
+                                self.mutex_nodes
+                                    .get_mut(mutex_id)
+                                    .map(|mutex_node| mutex_node.value += 1);
+                            }
+                        })
+                }
+            }
+        }
+    }
 
     fn resolve_connections<'a>(
         activity_connections: &'a std::collections::HashMap<MutexNodeId, ConnectionType>,
@@ -92,6 +155,12 @@ impl Graph {
 // drawing
 impl Graph {
     pub fn draw(&mut self, ui: &mut egui::Ui) {
+        self.time_since_last_tick_in_seconds += ui.ctx().input(|i| i.stable_dt);
+        if self.time_since_last_tick_in_seconds >= 1. {
+            self.time_since_last_tick_in_seconds -= 1.;
+            self.tick();
+        }
+
         ui.style_mut().spacing.interact_size = egui::Vec2::ZERO;
         ui.style_mut().spacing.button_padding = egui::Vec2::ZERO;
         ui.style_mut().interaction.multi_widget_text_select = false;
@@ -104,8 +173,6 @@ impl Graph {
         for (_, node) in &mut self.mutex_nodes {
             node.interact(ui);
         }
-
-
 
         // draw
         self.connections

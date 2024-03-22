@@ -149,6 +149,12 @@ impl ActivityNode {
                 .speed(0.05)
                 .clamp_range(1..=std::u32::MAX),
         );
+        let response_remaining_duration = ui.put(
+            egui::Rect::from_center_size(circle_position+egui::vec2(0., 1.5*duration_height), egui::Vec2::splat(duration_height)),
+            egui::DragValue::new(&mut self.remaining_duration)
+                .update_while_editing(false)
+                .speed(0.05)
+        );
         self.response_duration_id = Some(response_duration.id);
     }
 }
