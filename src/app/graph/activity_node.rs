@@ -1,9 +1,9 @@
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct ActivityNode {
-    pos: egui::Pos2,
-    task_name: String,
-    activity_name: String,
-    duration: String,
+    pub pos: egui::Pos2,
+    pub task_name: String,
+    pub activity_name: String,
+    pub duration: String,
 }
 
 impl ActivityNode {
@@ -14,11 +14,7 @@ impl ActivityNode {
         }
     }
 
-    pub fn draw(
-        &mut self,
-        ui: &mut egui::Ui,
-        connections: &Vec<(&super::MutexNode, &super::ConnectionType)>,
-    ) {
+    pub fn draw(&mut self, ui: &mut egui::Ui) {
         let style = ui.ctx().style().visuals.widgets.inactive;
 
         let text_field_width = 100.;
@@ -48,7 +44,7 @@ impl ActivityNode {
         let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
         ui.set_enabled(!ui.ctx().input(|i| i.pointer.secondary_down()));
 
-        self.draw_connections(&mut ui, connections);
+        //self.draw_connections(&mut ui, connections);
 
         ui.painter()
             .rect_filled(outer_rect, outer_rounding, style.bg_fill);
@@ -122,110 +118,4 @@ impl ActivityNode {
         }
     }
 
-    fn draw_connections(
-        &self,
-        ui: &mut egui::Ui,
-        connections: &Vec<(&super::MutexNode, &super::ConnectionType)>,
-    ) {
-        //let colors = vec![
-        //    egui::Color32::BLUE,
-        //    egui::Color32::DARK_BLUE,
-        //    egui::Color32::LIGHT_BLUE,
-        //];
-        //let colors = vec![
-        //    egui::Color32::GREEN,
-        //    egui::Color32::DARK_GREEN,
-        //    egui::Color32::LIGHT_GREEN,
-        //];
-        //let colors = vec![
-        //    egui::Color32::GOLD,
-        //    egui::Color32::YELLOW,
-        //    egui::Color32::LIGHT_YELLOW,
-        //];
-        let colors = vec![egui::Color32::DARK_GRAY, egui::Color32::LIGHT_GRAY];
-        //let colors = vec![egui::Color32::DARK_RED, egui::Color32::LIGHT_GRAY];
-        //let colors = vec![
-        //    egui::Color32::DARK_RED,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::RED,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::DARK_RED,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::DARK_BLUE,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::BLUE,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::DARK_BLUE,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::DARK_GREEN,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::GREEN,
-        //    egui::Color32::LIGHT_GRAY,
-        //    egui::Color32::DARK_GREEN,
-        //    egui::Color32::LIGHT_GRAY,
-        //];
-
-        connections
-            .iter()
-            .for_each(|(mutex_node, connection_type)| match connection_type {
-                super::ConnectionType::MutexToActivity => {
-                    Self::draw_connection(ui, mutex_node.pos, self.pos, &colors);
-                }
-                super::ConnectionType::ActivityToMutex => {
-                    Self::draw_connection(ui, self.pos, mutex_node.pos, &colors);
-                }
-                super::ConnectionType::TwoWay => {
-                    let offset = (self.pos - mutex_node.pos).normalized().rot90() * 6.;
-                    Self::draw_connection(ui, self.pos + offset, mutex_node.pos + offset, &colors);
-                    Self::draw_connection(ui, mutex_node.pos - offset, self.pos - offset, &colors);
-                }
-            });
-    }
-
-    fn draw_connection(
-        ui: &mut egui::Ui,
-        from_point: egui::Pos2,
-        to_point: egui::Pos2,
-        colors: &Vec<egui::Color32>,
-    ) {
-        const WIDTH: f32 = 7.;
-        const ARROW_SPACING: f32 = 8.;
-        const ARROW_DEPTH: f32 = 3.;
-        const SCROLL_SPEED_IN_POINTS_PER_SECOND: f32 = 4.;
-
-        ui.ctx().request_repaint();
-        let time_offset = ui.input(|i| i.time) as f32 * SCROLL_SPEED_IN_POINTS_PER_SECOND
-            % (ARROW_SPACING * colors.len() as f32);
-        let color_offset = -(time_offset / ARROW_SPACING) as i32;
-
-        let from_to_vector = to_point - from_point;
-        let from_to_unit_vector = from_to_vector.normalized();
-        let line_center_point =
-            from_point + 0.5 * from_to_vector + (time_offset % ARROW_SPACING) * from_to_unit_vector;
-        let half_arrow_count = (from_to_vector.length() / 2. / ARROW_SPACING) as i32;
-
-        let arrow_tip_to_arrow_top_right =
-            -ARROW_DEPTH * from_to_unit_vector + from_to_unit_vector.rot90() * (WIDTH / 2.);
-        let arrow_tip_to_arrow_top_left =
-            arrow_tip_to_arrow_top_right - from_to_unit_vector.rot90() * WIDTH;
-
-        for i in ((-half_arrow_count + 1)..=half_arrow_count).rev() {
-            let arrow_tip = line_center_point + i as f32 * ARROW_SPACING * from_to_unit_vector;
-            let arrow_top_left = arrow_tip + arrow_tip_to_arrow_top_left;
-            let arrow_top_right = arrow_tip + arrow_tip_to_arrow_top_right;
-            let arrow_bottom_left = arrow_top_left - from_to_unit_vector * ARROW_SPACING;
-            let arrow_bottom_right = arrow_top_right - from_to_unit_vector * ARROW_SPACING;
-            ui.painter().add(egui::Shape::convex_polygon(
-                vec![
-                    arrow_bottom_left,
-                    arrow_top_left,
-                    arrow_tip,
-                    arrow_top_right,
-                    arrow_bottom_right,
-                ],
-                colors[(i + color_offset).rem_euclid(colors.len() as i32) as usize],
-                egui::Stroke::NONE,
-            ));
-        }
-    }
 }
