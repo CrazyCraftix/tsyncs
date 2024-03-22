@@ -9,12 +9,100 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
+        let mut a2 = graph::ActivityNode::new(egui::pos2(300., 100.));
+        a2.task_name = "Task 2".into();
+        a2.activity_name = "Activiy 2".into();
+
+        let mut a1 = graph::ActivityNode::new(egui::pos2(150., 250.));
+        a1.task_name = "Task 1".into();
+        a1.activity_name = "Activiy 1".into();
+
+        let mut a5b = graph::ActivityNode::new(egui::pos2(150., 400.));
+        a5b.task_name = "Task 5".into();
+        a5b.activity_name = "Activiy 5b".into();
+
+        let mut a5a = graph::ActivityNode::new(egui::pos2(450., 400.));
+        a5a.task_name = "Task 5".into();
+        a5a.activity_name = "Activiy 5a".into();
+
+        let mut a3 = graph::ActivityNode::new(egui::pos2(450., 250.));
+        a3.task_name = "Task 3".into();
+        a3.activity_name = "Activiy 3".into();
+
+        let mut a4 = graph::ActivityNode::new(egui::pos2(600., 100.));
+        a4.task_name = "Task 4".into();
+        a4.activity_name = "Activiy 4".into();
+
+        let mut a6 = graph::ActivityNode::new(egui::pos2(750., 250.));
+        a6.task_name = "Task 6".into();
+        a6.activity_name = "Activiy 6".into();
+
+        let m24 = graph::MutexNode::new((a2.pos + a4.pos.to_vec2()) / 2.);
+        let m12 = graph::MutexNode::new((a1.pos + a2.pos.to_vec2()) / 2.);
+        let mut m234 = graph::MutexNode::new((a2.pos + a3.pos.to_vec2() + a4.pos.to_vec2()) / 3.);
+        m234.value = 1;
+        let m46 = graph::MutexNode::new((a4.pos + a6.pos.to_vec2()) / 2.);
+        let m13 = graph::MutexNode::new((a1.pos + a3.pos.to_vec2()) / 2.);
+        let m36 = graph::MutexNode::new((a3.pos + a6.pos.to_vec2()) / 2.);
+        let m65a = graph::MutexNode::new((a6.pos + a5a.pos.to_vec2()) / 2.);
+        let mut m5b1 = graph::MutexNode::new((a5b.pos + a1.pos.to_vec2()) / 2.);
+        m5b1.value = 1;
+        let mut m5b5a =
+            graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. + egui::vec2(0., 20.));
+        m5b5a.value = 1;
+        let m5a5b = graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. - egui::vec2(0., 20.));
+
         let mut graph = graph::Graph::default();
-        let activity_1 = graph.add_activiy_node(graph::ActivityNode::new(egui::pos2(0., 0.)));
-        let activity_2 = graph.add_activiy_node(graph::ActivityNode::new(egui::pos2(100., 100.)));
-        let mutex_1 = graph.add_mutex_node(graph::MutexNode::new(egui::pos2(50., 50.)));
-        graph.connect(activity_1, mutex_1, graph::ConnectionType::TwoWay);
-        graph.connect(activity_2, mutex_1, graph::ConnectionType::MutexToActivity);
+        let a2 = graph.add_activiy_node(a2);
+        let a1 = graph.add_activiy_node(a1);
+        let a5b = graph.add_activiy_node(a5b);
+        let a5a = graph.add_activiy_node(a5a);
+        let a3 = graph.add_activiy_node(a3);
+        let a4 = graph.add_activiy_node(a4);
+        let a6 = graph.add_activiy_node(a6);
+
+        let m24 = graph.add_mutex_node(m24);
+        let m12 = graph.add_mutex_node(m12);
+        let m234 = graph.add_mutex_node(m234);
+        let m46 = graph.add_mutex_node(m46);
+        let m13 = graph.add_mutex_node(m13);
+        let m36 = graph.add_mutex_node(m36);
+        let m65a = graph.add_mutex_node(m65a);
+        let m5b1 = graph.add_mutex_node(m5b1);
+        let m5b5a = graph.add_mutex_node(m5b5a);
+        let m5a5b = graph.add_mutex_node(m5a5b);
+
+        graph.connect(a2, m24, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a4, m24, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a1, m12, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a2, m12, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a2, m234, graph::ConnectionType::TwoWay);
+        graph.connect(a3, m234, graph::ConnectionType::TwoWay);
+        graph.connect(a4, m234, graph::ConnectionType::TwoWay);
+
+        graph.connect(a4, m46, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a6, m46, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a1, m13, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a3, m13, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a3, m36, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a6, m36, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a6, m65a, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a5a, m65a, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a5b, m5b1, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a1, m5b1, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a5b, m5b5a, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a5a, m5b5a, graph::ConnectionType::MutexToActivity);
+
+        graph.connect(a5a, m5a5b, graph::ConnectionType::ActivityToMutex);
+        graph.connect(a5b, m5a5b, graph::ConnectionType::MutexToActivity);
+
         Self { graph }
     }
 }
