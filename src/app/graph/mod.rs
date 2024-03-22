@@ -84,6 +84,7 @@ impl Graph {
             if activity_node.remaining_duration > 0 {
                 continue;
             }
+
             if let Some(activity_connections) = self.connections.get(&activity_id) {
                 // check if prerequisites are met
                 let prerequisites_missing = activity_connections
@@ -120,6 +121,7 @@ impl Graph {
                 continue;
             }
             activity_node.remaining_duration -= 1;
+
             if activity_node.remaining_duration == 0 {
                 if let Some(activity_connections) = self.connections.get(&activity_id) {
                     // increment all outputs
