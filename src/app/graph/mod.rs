@@ -199,31 +199,52 @@ impl Graph {
         activity_node: &ActivityNode,
         connections: &Vec<(&MutexNode, &ConnectionType)>,
     ) {
-        let colors = vec![egui::Color32::DARK_GRAY, egui::Color32::LIGHT_GRAY];
+        let colors = vec![egui::Color32::LIGHT_GRAY, egui::Color32::DARK_GRAY];
 
         connections
             .iter()
-            .for_each(|(mutex_node, connection_type)| match connection_type {
-                ConnectionType::MutexToActivity => {
-                    Self::draw_connection(ui, mutex_node.pos, activity_node.pos, &colors);
-                }
-                ConnectionType::ActivityToMutex => {
-                    Self::draw_connection(ui, activity_node.pos, mutex_node.pos, &colors);
-                }
-                ConnectionType::TwoWay => {
-                    let offset = (activity_node.pos - mutex_node.pos).normalized().rot90() * 6.;
-                    Self::draw_connection(
-                        ui,
-                        activity_node.pos + offset,
-                        mutex_node.pos + offset,
-                        &colors,
-                    );
-                    Self::draw_connection(
-                        ui,
-                        mutex_node.pos - offset,
-                        activity_node.pos - offset,
-                        &colors,
-                    );
+            .for_each(|(mutex_node, connection_type)| {
+                let colors_mutex_to_activity = match mutex_node.value {
+                    0 => vec![
+                        egui::Color32::LIGHT_GRAY,
+                        egui::Color32::DARK_RED,
+                        egui::Color32::LIGHT_GRAY,
+                        egui::Color32::RED,
+                    ],
+                    _ => vec![
+                        egui::Color32::LIGHT_GRAY,
+                        egui::Color32::DARK_GREEN,
+                        egui::Color32::LIGHT_GRAY,
+                        egui::Color32::GREEN,
+                    ],
+                };
+                match connection_type {
+                    ConnectionType::MutexToActivity => {
+                        Self::draw_connection(
+                            ui,
+                            mutex_node.pos,
+                            activity_node.pos,
+                            &colors_mutex_to_activity,
+                        );
+                    }
+                    ConnectionType::ActivityToMutex => {
+                        Self::draw_connection(ui, activity_node.pos, mutex_node.pos, &colors);
+                    }
+                    ConnectionType::TwoWay => {
+                        let offset = (activity_node.pos - mutex_node.pos).normalized().rot90() * 6.;
+                        Self::draw_connection(
+                            ui,
+                            activity_node.pos + offset,
+                            mutex_node.pos + offset,
+                            &colors,
+                        );
+                        Self::draw_connection(
+                            ui,
+                            mutex_node.pos - offset,
+                            activity_node.pos - offset,
+                            &colors_mutex_to_activity,
+                        );
+                    }
                 }
             });
     }

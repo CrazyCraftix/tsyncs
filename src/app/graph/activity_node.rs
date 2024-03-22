@@ -57,6 +57,11 @@ impl ActivityNode {
     pub fn draw(&mut self, ui: &mut egui::Ui) {
         let style = ui.style().visuals.widgets.inactive;
 
+        let outline_stoke = match self.remaining_duration {
+            0 => egui::Stroke::new(2., egui::Color32::RED),
+            _ => egui::Stroke::new(2., egui::Color32::GREEN),
+        };
+
         let text_field_width = 100.;
 
         let task_name_height = 20.;
@@ -130,7 +135,7 @@ impl ActivityNode {
         self.response_activity_name_id = Some(response_activity_name.id);
 
         ui.painter()
-            .rect_stroke(outer_rect, outer_rounding, style.fg_stroke);
+            .rect_stroke(outer_rect, outer_rounding, outline_stoke);
         ui.painter()
             .circle_filled(circle_position, circle_radius, style.bg_fill);
         ui.painter()
