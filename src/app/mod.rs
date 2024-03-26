@@ -139,12 +139,28 @@ impl eframe::App for App {
                     egui::menu::menu_button(ui, "File", |ui| {
                         #[cfg(not(target_arch = "wasm32"))]
                         if ui.button("Open File...").clicked() {
-                            let path = native_dialog::FileDialog::new()
+                            let mut path = "";
+                            let pathResult = native_dialog::FileDialog::new()
                                 .set_location("~/Desktop")
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All files", &["*"])
-                                .show_open_single_file()
-                                .unwrap();
+                                .show_open_single_file();
+
+                            match pathResult {
+                                Ok(Some(pathBuffer)) => {
+                                    path = pathBuffer.to_str().unwrap();
+                                }
+                                Ok(None) => {
+
+                                }
+                                Err(e) => {
+                                    native_dialog::MessageDialog::new()
+                                        .set_type(native_dialog::MessageType::Error)
+                                        .set_title("Error")
+                                        .set_text(&format!("Error: {}", e))
+                                        .show_alert().unwrap();
+                                }
+                            }
                         }
 
                         #[cfg(not(target_arch = "wasm32"))]
