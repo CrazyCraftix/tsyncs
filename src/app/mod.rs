@@ -1,6 +1,8 @@
 mod graph;
 mod graphics;
 
+//use native_dialog::{FileDialog, MessageDialog, MessageType};
+
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
@@ -134,6 +136,32 @@ impl eframe::App for App {
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     egui::widgets::global_dark_light_mode_buttons(ui);
+                    egui::menu::menu_button(ui, "File", |ui| {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if ui.button("Open File...").clicked() {
+                            let path = native_dialog::FileDialog::new()
+                                .set_location("~/Desktop")
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All files", &["*"])
+                                .show_open_single_file()
+                                .unwrap();
+                        }
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if ui.button("Save As...").clicked() {
+                            // save file
+                        }
+
+                        #[cfg(target_arch = "wasm32")]
+                        if ui.button("Download").clicked() {
+                            // download file
+                        }
+
+                        #[cfg(target_arch = "wasm32")]
+                        if ui.button("Upload").clicked() {
+                            // upload file
+                        }
+                    });
                 });
             });
 

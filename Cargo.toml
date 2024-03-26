@@ -20,6 +20,7 @@ serde = { version = "1", features = ["derive"] }
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+native-dialog = "0.7.0"
 env_logger = "0.10"
 
 # web:
