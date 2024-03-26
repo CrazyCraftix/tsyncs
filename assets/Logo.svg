@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 1000 500" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g id="Icon.afdesign" transform="matrix(0.455233,0,0,0.455233,391.865,299.879)">
+        <g transform="matrix(1,0,0,1,-512,-512)">
+            <g transform="matrix(3.28095,0,0,3.28095,-924.794,-1239.32)">
+                <g transform="matrix(0.243538,0,0,0.271081,301.448,364.534)">
+                    <ellipse cx="283.698" cy="268.59" rx="78.479" ry="70.505"/>
+                </g>
+                <g transform="matrix(0.243538,0,0,0.271081,436.505,364.534)">
+                    <ellipse cx="283.698" cy="268.59" rx="78.479" ry="70.505"/>
+                </g>
+                <g transform="matrix(0.243538,0,0,0.271081,301.154,557.415)">
+                    <ellipse cx="283.698" cy="268.59" rx="78.479" ry="70.505"/>
+                </g>
+                <g transform="matrix(0.253675,0.00424906,-0.00424906,0.253675,307.652,403.839)">
+                    <path d="M782.299,118.975L262.778,888.026" style="fill:none;stroke:black;stroke-width:60.07px;"/>
+                </g>
+                <g transform="matrix(0.243538,0,0,0.271081,368.976,460.975)">
+                    <ellipse cx="283.698" cy="268.59" rx="78.479" ry="70.505"/>
+                </g>
+                <g transform="matrix(-0.144602,0.349758,-0.349697,-0.132415,621.324,329.347)">
+                    <path d="M677.973,243.697L502.01,510.405" style="fill:none;stroke:black;stroke-width:39.91px;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+    <g transform="matrix(1.20392,0,0,1.20392,-27.9543,-94.0832)">
+        <g transform="matrix(279.209,0,0,279.209,245.908,328.387)">
+        </g>
+        <text x="47.669px" y="328.387px" style="font-family:'ShareTech-Regular', 'Share Tech';font-size:279.209px;">ts</text>
+    </g>
+    <g transform="matrix(2.31305,0,0,2.31305,-927.879,-487.221)">
+        <g transform="matrix(151.536,0,0,151.536,826.181,340.887)">
+        </g>
+        <text x="629.336px" y="340.887px" style="font-family:'ShareTech-Regular', 'Share Tech';font-size:151.536px;">ncs</text>
+    </g>
+</svg>
