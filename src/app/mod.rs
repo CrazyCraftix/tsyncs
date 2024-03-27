@@ -141,10 +141,9 @@ impl eframe::App for App {
             .min_height(0.)
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
-                    egui::widgets::global_dark_light_mode_buttons(ui);
                     egui::menu::menu_button(ui, "File", |ui| {
                         #[cfg(not(target_arch = "wasm32"))]
-                        if ui.button("Open File...").clicked() {
+                        if ui.button("Open Graph...").clicked() {
                             let path_result = native_dialog::FileDialog::new()
                                 .set_location(&dirs::home_dir().unwrap())
                                 .add_filter("Comma Seperated Values", &["csv"])
@@ -217,7 +216,9 @@ impl eframe::App for App {
                         if ui.button("Upload Graph").clicked() {
                             // upload file
                         }
+
                     });
+                    egui::widgets::global_dark_light_mode_buttons(ui);
                 });
             });
 

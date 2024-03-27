@@ -38,6 +38,7 @@ pub struct Graph {
 impl Graph {
     pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
         let seperator = ',';
+        let graph = Graph::default();
         for (line_number, line) in lines.flatten().enumerate() {
             let mut values = line.split(seperator).collect::<Vec<&str>>();
 
@@ -50,38 +51,38 @@ impl Graph {
                 "task" => {
                     let id = values[1]
                         .trim()
-                        .parse::<i32>()
+                        .parse::<usize>()
                         .map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
                     let task_name = values[2].to_string();
                     let activity_name = values[3].to_string();
-                    let duration = values[3].parse::<i32>().map_err(|_| {
+                    let duration = values[3].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Duration in line: {}", line_number)
                     })?;
-                    let priority = values[4].parse::<i32>().map_err(|_| {
+                    let priority = values[4].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Priority in line: {}", line_number)
                     })?;
                     let mutex_connections = values[5..]
                         .iter()
                         .map(|x| {
-                            x.parse::<i32>().map_err(|_| {
+                            x.parse::<usize>().map_err(|_| {
                                 format!(
                                     "Error while parsing Mutex Connection in line: {}",
                                     line_number
                                 )
                             })
                         })
-                        .collect::<Result<Vec<i32>, String>>()?;
+                        .collect::<Result<Vec<usize>, String>>()?;
                 }
                 "mutex" => {
-                    let id = values[1].parse::<i32>().expect("Error while parsing ID");
-                    let value = values[2].parse::<i32>().expect("Error while parsing Value");
+                    let id = values[1].parse::<usize>().expect("Error while parsing ID");
+                    let value = values[2].parse::<u32>().expect("Error while parsing Value");
                     let activity_connections = values[3..]
                         .iter()
                         .map(|x| {
-                            x.parse::<i32>()
+                            x.parse::<u32>()
                                 .expect("Error while parsing Activity Connection")
                         })
-                        .collect::<Vec<i32>>();
+                        .collect::<Vec<u32>>();
                 }
                 _ => {
                     // skip line
@@ -147,6 +148,7 @@ impl Graph {
             ));
         }
 
+        // add mutexes
         for (mutex_id, mutex_node) in &self.mutex_nodes {
             csv.push_str(&format!(
                 "Mutex,{},{},{}\n",
@@ -159,7 +161,8 @@ impl Graph {
                     .join(",")
             ));
         }
-        csv
+
+        return csv;
     }
 
     pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
