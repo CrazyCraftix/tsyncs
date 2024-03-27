@@ -1,3 +1,8 @@
+use std::error::Error;
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
+
 mod graph;
 mod graphics;
 
@@ -139,42 +144,61 @@ impl eframe::App for App {
                     egui::menu::menu_button(ui, "File", |ui| {
                         #[cfg(not(target_arch = "wasm32"))]
                         if ui.button("Open File...").clicked() {
-                            let mut path = "";
-                            let pathResult = native_dialog::FileDialog::new()
+                            let path_result = native_dialog::FileDialog::new()
                                 .set_location("~/Desktop")
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All files", &["*"])
                                 .show_open_single_file();
 
-                            match pathResult {
+                            match path_result {
                                 Ok(Some(pathBuffer)) => {
-                                    path = pathBuffer.to_str().unwrap();
+                                    let filename = pathBuffer.to_str().unwrap();
+                                    let lines = read_lines(filename).unwrap();
+                                    // panic on error
                                 }
-                                Ok(None) => {
-
-                                }
+                                Ok(None) => {}
                                 Err(e) => {
                                     native_dialog::MessageDialog::new()
                                         .set_type(native_dialog::MessageType::Error)
                                         .set_title("Error")
                                         .set_text(&format!("Error: {}", e))
-                                        .show_alert().unwrap();
+                                        .show_alert()
+                                        .unwrap();
                                 }
                             }
                         }
 
                         #[cfg(not(target_arch = "wasm32"))]
-                        if ui.button("Save As...").clicked() {
-                            // save file
+                        if ui.button("Save Graph As...").clicked() {
+                            let path_result = native_dialog::FileDialog::new()
+                                .set_location("~/Desktop")
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All files", &["*"])
+                                .show_save_single_file();
+
+                            match path_result {
+                                Ok(Some(pathBuffer)) => {
+                                    let filename = pathBuffer.to_str().unwrap();
+                                }
+                                Ok(None) => {}
+                                Err(e) => {
+                                    native_dialog::MessageDialog::new()
+                                        .set_type(native_dialog::MessageType::Error)
+                                        .set_title("Error")
+                                        .set_text(&format!("Error: {}", e))
+                                        .show_alert()
+                                        .unwrap();
+                                }
+                            }
                         }
 
                         #[cfg(target_arch = "wasm32")]
-                        if ui.button("Download").clicked() {
+                        if ui.button("Download Graph").clicked() {
                             // download file
                         }
 
                         #[cfg(target_arch = "wasm32")]
-                        if ui.button("Upload").clicked() {
+                        if ui.button("Upload Graph").clicked() {
                             // upload file
                         }
                     });
@@ -196,4 +220,16 @@ impl eframe::App for App {
             });
         });
     }
+}
+
+fn parse_csv(lines : io::Lines<io::BufReader<File>>) {
+
+}
+
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
 }
