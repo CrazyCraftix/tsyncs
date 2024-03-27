@@ -40,16 +40,16 @@ impl Default for App {
         let m24 = graph::MutexNode::new((a2.pos + a4.pos.to_vec2()) / 2.);
         let m12 = graph::MutexNode::new((a1.pos + a2.pos.to_vec2()) / 2.);
         let mut m234 = graph::MutexNode::new((a2.pos + a3.pos.to_vec2() + a4.pos.to_vec2()) / 3.);
-        m234.value = 1;
+        m234.increment_value();
         let m46 = graph::MutexNode::new((a4.pos + a6.pos.to_vec2()) / 2.);
         let m13 = graph::MutexNode::new((a1.pos + a3.pos.to_vec2()) / 2.);
         let m36 = graph::MutexNode::new((a3.pos + a6.pos.to_vec2()) / 2.);
         let m65a = graph::MutexNode::new((a6.pos + a5a.pos.to_vec2()) / 2.);
         let mut m5b1 = graph::MutexNode::new((a5b.pos + a1.pos.to_vec2()) / 2.);
-        m5b1.value = 1;
+        m5b1.increment_value();
         let mut m5b5a =
             graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. + egui::vec2(0., 20.));
-        m5b5a.value = 1;
+        m5b5a.increment_value();
         let m5a5b = graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. - egui::vec2(0., 20.));
 
         let mut graph = graph::Graph::default();
