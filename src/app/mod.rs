@@ -1,6 +1,7 @@
+use std::env;
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::path::Path;
 
 mod graph;
@@ -145,7 +146,7 @@ impl eframe::App for App {
                         #[cfg(not(target_arch = "wasm32"))]
                         if ui.button("Open File...").clicked() {
                             let path_result = native_dialog::FileDialog::new()
-                                .set_location("~/Desktop")
+                                .set_location(&dirs::home_dir().unwrap())
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All files", &["*"])
                                 .show_open_single_file();
@@ -171,7 +172,7 @@ impl eframe::App for App {
                         #[cfg(not(target_arch = "wasm32"))]
                         if ui.button("Save Graph As...").clicked() {
                             let path_result = native_dialog::FileDialog::new()
-                                .set_location("~/Desktop")
+                                .set_location(&dirs::home_dir().unwrap())
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All files", &["*"])
                                 .show_save_single_file();
@@ -179,6 +180,21 @@ impl eframe::App for App {
                             match path_result {
                                 Ok(Some(pathBuffer)) => {
                                     let filename = pathBuffer.to_str().unwrap();
+                                    let csv = generate_csv(&self.graph);
+                                    let mut file_result = File::create(filename);
+                                    match file_result {
+                                        Ok(mut file) => {
+                                            file.write(csv.as_bytes()).unwrap();
+                                        }
+                                        Err(e) => {
+                                            native_dialog::MessageDialog::new()
+                                                .set_type(native_dialog::MessageType::Error)
+                                                .set_title("Error")
+                                                .set_text(&format!("{}", e))
+                                                .show_alert()
+                                                .unwrap();
+                                        }
+                                    }
                                 }
                                 Ok(None) => {}
                                 Err(e) => {
@@ -244,6 +260,7 @@ fn parse_csv(lines : io::Lines<io::BufReader<File>>) -> Result<graph::Graph, Box
             "mutex" => {
                 let id = values[1].parse::<i32>().expect("Error while parsing ID");
                 let value = values[2].parse::<i32>().expect("Error while parsing Value");
+                let activity_connections = values[3..].iter().map(|x| x.parse::<i32>().expect("Error while parsing Activity Connection")).collect::<Vec<i32>>();
             }
             _ => {
                 // skip line
@@ -251,6 +268,10 @@ fn parse_csv(lines : io::Lines<io::BufReader<File>>) -> Result<graph::Graph, Box
         }
     }
     Ok(graph::Graph::default())
+}
+
+fn generate_csv(graph: &graph::Graph) -> String {
+    return "hello".to_string();
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
