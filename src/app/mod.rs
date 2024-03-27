@@ -1,8 +1,8 @@
-use std::env;
-use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 use std::path::Path;
+
+use self::graph::Graph;
 
 mod graph;
 mod graphics;
@@ -12,7 +12,7 @@ mod graphics;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
-    graph: graph::Graph,
+    graph: Graph,
 }
 
 impl Default for App {
@@ -60,7 +60,7 @@ impl Default for App {
         m5b5a.value = 1;
         let m5a5b = graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. - egui::vec2(0., 20.));
 
-        let mut graph = graph::Graph::default();
+        let mut graph = Graph::default();
         let a2 = graph.add_activiy_node(a2);
         let a1 = graph.add_activiy_node(a1);
         let a5b = graph.add_activiy_node(a5b);
@@ -155,7 +155,7 @@ impl eframe::App for App {
                                 Ok(Some(pathBuffer)) => {
                                     let filename = pathBuffer.to_str().unwrap();
                                     let lines = read_lines(filename).unwrap();
-                                    _ = parse_csv(lines);
+                                    _ = Graph::from_csv(lines);
                                 }
                                 Ok(None) => {}
                                 Err(e) => {
@@ -180,7 +180,7 @@ impl eframe::App for App {
                             match path_result {
                                 Ok(Some(pathBuffer)) => {
                                     let filename = pathBuffer.to_str().unwrap();
-                                    let csv = generate_csv(&self.graph);
+                                    let csv = self.graph.to_csv();
                                     let mut file_result = File::create(filename);
                                     match file_result {
                                         Ok(mut file) => {
@@ -236,42 +236,6 @@ impl eframe::App for App {
             });
         });
     }
-}
-
-fn parse_csv(lines : io::Lines<io::BufReader<File>>) -> Result<graph::Graph, Box<String>> {
-    let seperator = ',';
-    for (line_number, line) in lines.flatten().enumerate() {
-        let mut values = line.split(seperator).collect::<Vec<&str>>();
-
-        if values.len() < 5 {
-            continue;
-        }
-
-        // match first value to determine type of line
-        match values[0].to_lowercase().as_str() {
-            "task" => {
-                let id = values[1].trim().parse::<i32>().map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
-                let task_name = values[2].to_string();
-                let activity_name = values[3].to_string();
-                let duration = values[3].parse::<i32>().map_err(|_| format!("Error while parsing Duration in line: {}", line_number))?;
-                let priority = values[4].parse::<i32>().map_err(|_| format!("Error while parsing Priority in line: {}", line_number))?;
-                let mutex_connections = values[5..].iter().map(|x| x.parse::<i32>().map_err(|_| format!("Error while parsing Mutex Connection in line: {}", line_number))).collect::<Result<Vec<i32>, String>>()?;
-            }
-            "mutex" => {
-                let id = values[1].parse::<i32>().expect("Error while parsing ID");
-                let value = values[2].parse::<i32>().expect("Error while parsing Value");
-                let activity_connections = values[3..].iter().map(|x| x.parse::<i32>().expect("Error while parsing Activity Connection")).collect::<Vec<i32>>();
-            }
-            _ => {
-                // skip line
-            }
-        }
-    }
-    Ok(graph::Graph::default())
-}
-
-fn generate_csv(graph: &graph::Graph) -> String {
-    return "hello".to_string();
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>

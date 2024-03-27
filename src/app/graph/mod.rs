@@ -1,6 +1,8 @@
 mod activity_node;
 mod mutex_node;
 
+use std::{fs::File, io};
+
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
 
@@ -34,6 +36,132 @@ pub struct Graph {
 
 // structure
 impl Graph {
+    pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
+        let seperator = ',';
+        for (line_number, line) in lines.flatten().enumerate() {
+            let mut values = line.split(seperator).collect::<Vec<&str>>();
+
+            if values.len() < 5 {
+                continue;
+            }
+
+            // match first value to determine type of line
+            match values[0].to_lowercase().as_str() {
+                "task" => {
+                    let id = values[1]
+                        .trim()
+                        .parse::<i32>()
+                        .map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
+                    let task_name = values[2].to_string();
+                    let activity_name = values[3].to_string();
+                    let duration = values[3].parse::<i32>().map_err(|_| {
+                        format!("Error while parsing Duration in line: {}", line_number)
+                    })?;
+                    let priority = values[4].parse::<i32>().map_err(|_| {
+                        format!("Error while parsing Priority in line: {}", line_number)
+                    })?;
+                    let mutex_connections = values[5..]
+                        .iter()
+                        .map(|x| {
+                            x.parse::<i32>().map_err(|_| {
+                                format!(
+                                    "Error while parsing Mutex Connection in line: {}",
+                                    line_number
+                                )
+                            })
+                        })
+                        .collect::<Result<Vec<i32>, String>>()?;
+                }
+                "mutex" => {
+                    let id = values[1].parse::<i32>().expect("Error while parsing ID");
+                    let value = values[2].parse::<i32>().expect("Error while parsing Value");
+                    let activity_connections = values[3..]
+                        .iter()
+                        .map(|x| {
+                            x.parse::<i32>()
+                                .expect("Error while parsing Activity Connection")
+                        })
+                        .collect::<Vec<i32>>();
+                }
+                _ => {
+                    // skip line
+                }
+            }
+        }
+        Ok(Self::default())
+    }
+
+    pub fn to_csv(&self) -> String {
+        use std::collections::HashMap;
+
+        let mut connection_activity_to_mutex: HashMap<usize, Vec<usize>> = HashMap::new();
+        let mut connection_mutex_to_activity: HashMap<usize, Vec<usize>> = HashMap::new();
+
+        for (activity_id, activity_connections) in &self.connections {
+            for (mutex_id, connection_type) in activity_connections {
+                match connection_type {
+                    ConnectionType::ActivityToMutex => {
+                        connection_activity_to_mutex
+                            .entry(activity_id.0)
+                            .or_insert_with(Vec::new)
+                            .push(mutex_id.0);
+                    }
+                    ConnectionType::MutexToActivity => {
+                        connection_mutex_to_activity
+                            .entry(mutex_id.0)
+                            .or_insert_with(Vec::new)
+                            .push(activity_id.0);
+                    }
+                    ConnectionType::TwoWay => {
+                        connection_activity_to_mutex
+                            .entry(activity_id.0)
+                            .or_insert_with(Vec::new)
+                            .push(mutex_id.0);
+                        connection_mutex_to_activity
+                            .entry(mutex_id.0)
+                            .or_insert_with(Vec::new)
+                            .push(activity_id.0);
+                    }
+                }
+            }
+        }
+
+        let mut csv = String::new();
+        //add header
+        csv.push_str("Type,ID,Parameters\n");
+
+        // add tasks
+        for (activity_id, activity_node) in &self.activity_nodes {
+            csv.push_str(&format!(
+                "Task,{},{},{},{},{},{}\n",
+                activity_id.0,
+                activity_node.task_name,
+                activity_node.activity_name,
+                activity_node.duration,
+                0, // priority
+                connection_activity_to_mutex
+                    .get(&activity_id.0)
+                    .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<String>>())
+                    .unwrap_or_default()
+                    .join(",")
+            ));
+        }
+
+        for (mutex_id, mutex_node) in &self.mutex_nodes {
+            csv.push_str(&format!(
+                "Mutex,{},{},{}\n",
+                mutex_id.0,
+                mutex_node.value,
+                connection_mutex_to_activity
+                    .get(&mutex_id.0)
+                    .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<String>>())
+                    .unwrap_or_default()
+                    .join(",")
+            ));
+        }
+        csv
+    }
+
     pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
         let id = self.next_activity_id;
         self.activity_nodes.insert(id, activity_node);
