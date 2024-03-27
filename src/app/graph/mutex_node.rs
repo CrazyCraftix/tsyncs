@@ -1,7 +1,7 @@
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct MutexNode {
     pub pos: egui::Pos2,
-    value: u32,
+    pub value: u32,
 
     previous_value: u32,
     response_outer_id: Option<egui::Id>,
@@ -14,28 +14,6 @@ impl MutexNode {
             pos,
             ..Default::default()
         }
-    }
-
-    pub fn increment_value(&mut self) {
-        self.previous_value = self.value;
-        self.value += 1;
-    }
-
-    pub fn decrement_value(&mut self) {
-        self.previous_value = self.value;
-        self.value -= 1;
-    }
-
-    pub fn get_value(&self) -> u32 {
-        self.value
-    }
-
-    pub fn update_previous_value(&mut self) {
-        self.previous_value = self.value;
-    }
-
-    pub fn get_previous_value(&self) -> u32 {
-        self.previous_value
     }
 
     pub fn interact(&mut self, ui: &egui::Ui) {
