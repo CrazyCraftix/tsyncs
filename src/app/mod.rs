@@ -154,7 +154,7 @@ impl eframe::App for App {
                                 Ok(Some(pathBuffer)) => {
                                     let filename = pathBuffer.to_str().unwrap();
                                     let lines = read_lines(filename).unwrap();
-                                    // panic on error
+                                    _ = parse_csv(lines);
                                 }
                                 Ok(None) => {}
                                 Err(e) => {
@@ -222,8 +222,35 @@ impl eframe::App for App {
     }
 }
 
-fn parse_csv(lines : io::Lines<io::BufReader<File>>) {
+fn parse_csv(lines : io::Lines<io::BufReader<File>>) -> Result<graph::Graph, Box<String>> {
+    let seperator = ',';
+    for (line_number, line) in lines.flatten().enumerate() {
+        let mut values = line.split(seperator).collect::<Vec<&str>>();
 
+        if values.len() < 5 {
+            continue;
+        }
+
+        // match first value to determine type of line
+        match values[0].to_lowercase().as_str() {
+            "task" => {
+                let id = values[1].trim().parse::<i32>().map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
+                let task_name = values[2].to_string();
+                let activity_name = values[3].to_string();
+                let duration = values[3].parse::<i32>().map_err(|_| format!("Error while parsing Duration in line: {}", line_number))?;
+                let priority = values[4].parse::<i32>().map_err(|_| format!("Error while parsing Priority in line: {}", line_number))?;
+                let mutex_connections = values[5..].iter().map(|x| x.parse::<i32>().map_err(|_| format!("Error while parsing Mutex Connection in line: {}", line_number))).collect::<Result<Vec<i32>, String>>()?;
+            }
+            "mutex" => {
+                let id = values[1].parse::<i32>().expect("Error while parsing ID");
+                let value = values[2].parse::<i32>().expect("Error while parsing Value");
+            }
+            _ => {
+                // skip line
+            }
+        }
+    }
+    Ok(graph::Graph::default())
 }
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
