@@ -151,19 +151,19 @@ impl eframe::App for App {
                                 .show_open_single_file();
 
                             match path_result {
-                                Ok(Some(pathBuffer)) => {
-                                    let filename = pathBuffer.to_str().unwrap();
-                                    let lines = read_lines(filename).unwrap();
-                                    let graph_result = Graph::from_csv(lines);
+                                Ok(Some(path_buffer)) => {
+                                    let filename = path_buffer.to_str().unwrap();
+                                    let lines =
+                                        io::BufReader::new(File::open(filename).unwrap()).lines();
 
-                                    match graph_result {
+                                    match Graph::from_csv(lines) {
                                         Ok(graph) => {
                                             //self.graph = graph;
                                         }
                                         Err(e) => {
                                             native_dialog::MessageDialog::new()
                                                 .set_type(native_dialog::MessageType::Error)
-                                                .set_title("Error")
+                                                .set_title("Parser Error")
                                                 .set_text(&format!("{}", e))
                                                 .show_alert()
                                                 .unwrap();
@@ -230,7 +230,6 @@ impl eframe::App for App {
                         if ui.button("Upload Graph").clicked() {
                             // upload file
                         }
-
                     });
                     egui::widgets::global_dark_light_mode_buttons(ui);
                 });
@@ -251,12 +250,4 @@ impl eframe::App for App {
             });
         });
     }
-}
-
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
-{
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
 }
