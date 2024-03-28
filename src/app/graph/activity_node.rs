@@ -59,7 +59,7 @@ impl ActivityNode {
 
         let outline_stoke = match self.remaining_duration {
             0 => egui::Stroke::new(2., egui::Color32::RED),
-            _ => egui::Stroke::new(2., egui::Color32::GREEN),
+            _ => egui::Stroke::new(2.5, egui::Color32::GREEN),
         };
 
         let text_field_width = 100.;

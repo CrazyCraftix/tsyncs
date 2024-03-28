@@ -3,6 +3,7 @@ pub struct MutexNode {
     pub pos: egui::Pos2,
     pub value: u32,
 
+    previous_value: u32,
     response_outer_id: Option<egui::Id>,
     response_value_id: Option<egui::Id>,
 }
@@ -39,8 +40,13 @@ impl MutexNode {
 
         let outer_rect = egui::Rect::from_center_size(self.pos, egui::Vec2::splat(30.));
 
+        let mut stroke = style.fg_stroke;
+        if self.value != 0 {
+            stroke.color = egui::Color32::GREEN;
+            stroke.width = 1.5;
+        }
         ui.painter().rect_filled(outer_rect, 0., style.bg_fill);
-        ui.painter().rect_stroke(outer_rect, 0., style.fg_stroke);
+        ui.painter().rect_stroke(outer_rect, 0., stroke);
         let response_outer = ui.allocate_rect(outer_rect, egui::Sense::click_and_drag());
         self.response_outer_id = Some(response_outer.id);
 
