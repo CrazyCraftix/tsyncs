@@ -105,21 +105,21 @@ impl Graph {
         let mut connection_mutex_to_activity: HashMap<usize, Vec<usize>> = HashMap::new();
 
         for (activity_id, activity_connections) in &self.connections {
-            for (mutex_id, connection_type) in activity_connections {
-                match connection_type {
-                    ConnectionType::ActivityToMutex => {
+            for (mutex_id, connection) in activity_connections {
+                match connection.direction {
+                    connection::Direction::ActivityToMutex => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
                             .or_insert_with(Vec::new)
                             .push(mutex_id.0);
                     }
-                    ConnectionType::MutexToActivity => {
+                    connection::Direction::MutexToActivity => {
                         connection_mutex_to_activity
                             .entry(mutex_id.0)
                             .or_insert_with(Vec::new)
                             .push(activity_id.0);
                     }
-                    ConnectionType::TwoWay => {
+                    connection::Direction::TwoWay => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
                             .or_insert_with(Vec::new)

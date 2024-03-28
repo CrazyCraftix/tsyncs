@@ -1,6 +1,4 @@
-use std::fs::File;
-use std::io::{self, BufRead, Write};
-use std::path::Path;
+use std::io::BufRead as _;
 
 use self::graph::Graph;
 
@@ -160,8 +158,10 @@ impl eframe::App for App {
                             match path_result {
                                 Ok(Some(path_buffer)) => {
                                     let filename = path_buffer.to_str().unwrap();
-                                    let lines =
-                                        io::BufReader::new(File::open(filename).unwrap()).lines();
+                                    let lines = std::io::BufReader::new(
+                                        std::fs::File::open(filename).unwrap(),
+                                    )
+                                    .lines();
 
                                     match Graph::from_csv(lines) {
                                         Ok(graph) => {
