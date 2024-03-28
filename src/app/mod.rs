@@ -1,4 +1,4 @@
-use std::io::BufRead as _;
+use std::io::{BufRead as _, Write as _};
 
 use self::graph::Graph;
 
@@ -201,7 +201,7 @@ impl eframe::App for App {
                                 Ok(Some(pathBuffer)) => {
                                     let filename = pathBuffer.to_str().unwrap();
                                     let csv = self.graph.to_csv();
-                                    let mut file_result = File::create(filename);
+                                    let mut file_result = std::fs::File::create(filename);
                                     match file_result {
                                         Ok(mut file) => {
                                             file.write(csv.as_bytes()).unwrap();
