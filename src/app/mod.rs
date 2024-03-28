@@ -165,7 +165,7 @@ impl eframe::App for App {
 
                                     match Graph::from_csv(lines) {
                                         Ok(graph) => {
-                                            //self.graph = graph;
+                                            self.graph = graph;
                                         }
                                         Err(e) => {
                                             native_dialog::MessageDialog::new()
