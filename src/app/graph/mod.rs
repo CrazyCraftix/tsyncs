@@ -9,8 +9,31 @@ pub use mutex_node::MutexNode;
 
 #[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActivityNodeId(usize);
+impl std::ops::Deref for ActivityNodeId {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for ActivityNodeId {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+       &mut self.0
+    }
+}
+
 #[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutexNodeId(usize);
+impl std::ops::Deref for MutexNodeId {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for MutexNodeId {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+       &mut self.0
+    }
+}
 
 const SECONDS_PER_TICK: f32 = 1.;
 
@@ -30,7 +53,7 @@ pub struct Graph {
     tick_progress: f32,
 }
 
-// structure
+// import/export
 impl Graph {
     pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
         let seperator = ';';
@@ -170,18 +193,25 @@ impl Graph {
 
         return csv;
     }
+}
 
+// structure
+impl Graph {
     pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
-        let id = self.next_activity_id;
+        self.add_activiy_node_with_id(activity_node, self.next_activity_id)
+    }
+    pub fn add_activiy_node_with_id(&mut self, activity_node: ActivityNode, id: ActivityNodeId) -> ActivityNodeId {
         self.activity_nodes.insert(id, activity_node);
-        self.next_activity_id = ActivityNodeId(id.0 + 1);
+        *self.next_activity_id = self.next_activity_id.max(*id + 1);
         id
     }
 
     pub fn add_mutex_node(&mut self, mutex_node: MutexNode) -> MutexNodeId {
-        let id = self.next_mutex_id;
+        self.add_mutex_node_with_id(mutex_node, self.next_mutex_id)
+    }
+    pub fn add_mutex_node_with_id(&mut self, mutex_node: MutexNode, id: MutexNodeId) -> MutexNodeId {
         self.mutex_nodes.insert(id, mutex_node);
-        self.next_mutex_id = MutexNodeId(id.0 + 1);
+        *self.next_mutex_id = self.next_mutex_id.max(*id + 1);
         id
     }
 
