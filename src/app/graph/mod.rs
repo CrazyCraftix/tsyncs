@@ -37,12 +37,12 @@ pub struct Graph {
 // structure
 impl Graph {
     pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
-        let seperator = ',';
+        let seperator = ';';
         let graph = Graph::default();
         for (line_number, line) in lines.flatten().enumerate() {
             let mut values = line.split(seperator).collect::<Vec<&str>>();
 
-            if values.len() < 5 {
+            if values.len() < 6 {
                 continue;
             }
 
@@ -55,14 +55,15 @@ impl Graph {
                         .map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
                     let task_name = values[2].to_string();
                     let activity_name = values[3].to_string();
-                    let duration = values[3].parse::<u32>().map_err(|_| {
+                    let duration = values[4].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Duration in line: {}", line_number)
                     })?;
-                    let priority = values[4].parse::<u32>().map_err(|_| {
+                    let priority = values[5].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Priority in line: {}", line_number)
                     })?;
-                    let mutex_connections = values[5..]
+                    let mutex_connections = values[6..]
                         .iter()
+                        .filter(|x| !x.is_empty())
                         .map(|x| {
                             x.parse::<usize>().map_err(|_| {
                                 format!(
@@ -74,22 +75,31 @@ impl Graph {
                         .collect::<Result<Vec<usize>, String>>()?;
                 }
                 "mutex" => {
-                    let id = values[1].parse::<usize>().expect("Error while parsing ID");
-                    let value = values[2].parse::<u32>().expect("Error while parsing Value");
-                    let activity_connections = values[3..]
+                    let id = values[1]
+                        .parse::<usize>()
+                        .map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
+                    let value = values[2].parse::<u32>().map_err(|_| {
+                        format!("Error while parsing Value in line: {}", line_number)
+                    })?;
+                    let _activity_connections = values[3..]
                         .iter()
+                        .filter(|x| !x.is_empty())
                         .map(|x| {
-                            x.parse::<u32>()
-                                .expect("Error while parsing Activity Connection")
+                            x.parse::<u32>().map_err(|_| {
+                                format!(
+                                    "Error while parsing Activity Connection in line: {}",
+                                    line_number
+                                )
+                            })
                         })
-                        .collect::<Vec<u32>>();
+                        .collect::<Result<Vec<u32>, String>>()?;
                 }
                 _ => {
                     // skip line
                 }
             }
         }
-        Ok(Self::default())
+        return Ok(Self::default());
     }
 
     pub fn to_csv(&self) -> String {

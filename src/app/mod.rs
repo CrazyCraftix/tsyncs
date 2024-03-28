@@ -154,7 +154,21 @@ impl eframe::App for App {
                                 Ok(Some(pathBuffer)) => {
                                     let filename = pathBuffer.to_str().unwrap();
                                     let lines = read_lines(filename).unwrap();
-                                    _ = Graph::from_csv(lines);
+                                    let graph_result = Graph::from_csv(lines);
+
+                                    match graph_result {
+                                        Ok(graph) => {
+                                            //self.graph = graph;
+                                        }
+                                        Err(e) => {
+                                            native_dialog::MessageDialog::new()
+                                                .set_type(native_dialog::MessageType::Error)
+                                                .set_title("Error")
+                                                .set_text(&format!("{}", e))
+                                                .show_alert()
+                                                .unwrap();
+                                        }
+                                    }
                                 }
                                 Ok(None) => {}
                                 Err(e) => {
