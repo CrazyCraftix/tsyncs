@@ -5,10 +5,9 @@ mod mutex_node;
 use std::{fs::File, io};
 
 pub use activity_node::ActivityNode;
-use egui::mutex::Mutex;
 pub use mutex_node::MutexNode;
 
-#[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActivityNodeId(usize);
 impl std::ops::Deref for ActivityNodeId {
     type Target = usize;
@@ -22,7 +21,7 @@ impl std::ops::DerefMut for ActivityNodeId {
     }
 }
 
-#[derive(Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutexNodeId(usize);
 impl std::ops::Deref for MutexNodeId {
     type Target = usize;
@@ -36,11 +35,11 @@ impl std::ops::DerefMut for MutexNodeId {
     }
 }
 
-const SECONDS_PER_TICK: f32 = 1.;
+const SECONDS_PER_TICK: f32 = 0.2;
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct Graph {
-    activity_nodes: std::collections::HashMap<ActivityNodeId, ActivityNode>,
+    activity_nodes: indexmap::IndexMap<ActivityNodeId, ActivityNode>,
     mutex_nodes: std::collections::HashMap<MutexNodeId, MutexNode>,
 
     connections: std::collections::HashMap<
@@ -66,7 +65,7 @@ impl Graph {
             Vec::new();
 
         for (line_number, line) in lines.flatten().enumerate() {
-            let mut values = line.split(seperator).collect::<Vec<&str>>();
+            let values = line.split(seperator).collect::<Vec<&str>>();
 
             // match first value to determine type of line
             match values[0].to_lowercase().as_str() {
@@ -104,7 +103,7 @@ impl Graph {
                     activity_node.task_name = task_name;
                     activity_node.activity_name = activity_name;
                     activity_node.duration = duration;
-                    //activity_node.priority = priority;
+                    activity_node.priority = priority;
                     graph.add_activiy_node_with_id(activity_node, id);
 
                     activity_node_to_mutex_connections.push((id, mutex_connections));
@@ -141,9 +140,7 @@ impl Graph {
 
                     mutex_node_to_activity_connections.push((id, activity_connections));
                 }
-                _ => {
-                    // skip line
-                }
+                _ => {} // skip line
             }
         }
         for (activity_id, mutex_ids) in activity_node_to_mutex_connections {
@@ -216,7 +213,7 @@ impl Graph {
                 activity_node.task_name,
                 activity_node.activity_name,
                 activity_node.duration,
-                0, // priority
+                activity_node.priority,
                 connection_activity_to_mutex
                     .get(&activity_id.0)
                     .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<String>>())
@@ -254,7 +251,7 @@ impl Graph {
         id: ActivityNodeId,
     ) -> ActivityNodeId {
         self.activity_nodes.insert(id, activity_node);
-        *self.next_activity_id = self.next_activity_id.max(*id + 1);
+        *self.next_activity_id = usize::max(*self.next_mutex_id, *id + 1);
         id
     }
 
@@ -267,7 +264,7 @@ impl Graph {
         id: MutexNodeId,
     ) -> MutexNodeId {
         self.mutex_nodes.insert(id, mutex_node);
-        *self.next_mutex_id = self.next_mutex_id.max(*id + 1);
+        *self.next_mutex_id = usize::max(*self.next_mutex_id, *id + 1);
         id
     }
 
@@ -337,41 +334,58 @@ impl Graph {
     }
 
     fn tick_a(&mut self) {
-        for (activity_id, activity_node) in &mut self.activity_nodes {
-            if activity_node.remaining_duration > 0 {
-                continue;
-            }
-
-            if let Some(activity_connections) = self.connections.get(&activity_id) {
-                // check if prerequisites are met
-                let prerequisites_missing = activity_connections
-                    .iter()
-                    .filter(|(_, connection)| {
-                        connection.direction != connection::Direction::ActivityToMutex
-                    })
-                    .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
-                    .find(|mutex_node| mutex_node.value <= 0)
-                    .is_some();
-
-                if prerequisites_missing {
-                    continue;
+        self.activity_nodes
+            .sort_unstable_by(|_, activity_node_1, _, activity_node_2| {
+                match activity_node_1.priority.cmp(&activity_node_2.priority) {
+                    // randomize if priority is the same
+                    std::cmp::Ordering::Equal => match rand::random::<bool>() {
+                        true => std::cmp::Ordering::Greater,
+                        false => std::cmp::Ordering::Less,
+                    },
+                    ordering => ordering,
+                }
+            });
+        self.activity_nodes
+            .iter_mut()
+            .rev()
+            .for_each(|(activity_id, activity_node)| {
+                if activity_node.remaining_duration > 0 {
+                    return;
                 }
 
-                // start the node
-                activity_node.remaining_duration = activity_node.duration;
+                if let Some(activity_connections) = self.connections.get(&activity_id) {
+                    // check if prerequisites are met
+                    let prerequisites_missing = activity_connections
+                        .iter()
+                        .filter(|(_, connection)| {
+                            connection.direction != connection::Direction::ActivityToMutex
+                        })
+                        .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
+                        .find(|mutex_node| mutex_node.value <= 0)
+                        .is_some();
 
-                // decrement prerequisites
-                activity_connections
-                    .iter()
-                    .for_each(|(mutex_id, connection)| {
-                        if connection.direction != connection::Direction::ActivityToMutex {
-                            self.mutex_nodes
-                                .get_mut(mutex_id)
-                                .map(|mutex_node| mutex_node.value -= 1);
-                        }
-                    })
-            }
-        }
+                    if prerequisites_missing {
+                        return;
+                    }
+
+                    // start the node
+                    activity_node.remaining_duration = activity_node.duration;
+
+                    // decrement prerequisites
+                    activity_connections
+                        .iter()
+                        .for_each(|(mutex_id, connection)| {
+                            if connection.direction != connection::Direction::ActivityToMutex {
+                                self.mutex_nodes
+                                    .get_mut(mutex_id)
+                                    .map(|mutex_node| mutex_node.value -= 1);
+                            }
+                        })
+                }
+            });
+
+        // return to predictable order for drawing the ui
+        self.activity_nodes.sort_unstable_keys();
     }
 
     fn tick_b(&mut self) {

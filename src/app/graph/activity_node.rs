@@ -3,6 +3,7 @@ pub struct ActivityNode {
     pub pos: egui::Pos2,
     pub task_name: String,
     pub activity_name: String,
+    pub priority: u32,
     pub duration: u32,
     pub remaining_duration: u32,
 
@@ -84,9 +85,7 @@ impl ActivityNode {
 
         // for debugging
         let frame = false;
-
-        let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
-        //ui.set_enabled(!ui.ctx().input(|i| i.pointer.secondary_down()));
+        ui.child_ui(ui.max_rect(), *ui.layout());
 
         ui.painter()
             .rect_filled(outer_rect, outer_rounding, style.bg_fill);
@@ -143,23 +142,30 @@ impl ActivityNode {
 
         let response_duration = ui.put(
             egui::Rect::from_center_size(circle_position, egui::Vec2::splat(duration_height)),
-            //egui::TextEdit::singleline(&mut self.duration)
-            //    .margin(egui::Margin::ZERO)
-            //    .frame(frame)
-            //    .vertical_align(egui::Align::Center)
-            //    .horizontal_align(egui::Align::Center)
-            //    .font(duration_font),
             egui::DragValue::new(&mut self.duration)
                 .update_while_editing(false)
                 .speed(0.05)
                 .clamp_range(1..=std::u32::MAX),
         );
-        let response_remaining_duration = ui.put(
-            egui::Rect::from_center_size(circle_position+egui::vec2(0., 1.5*duration_height), egui::Vec2::splat(duration_height)),
+        self.response_duration_id = Some(response_duration.id);
+
+        ui.put(
+            egui::Rect::from_center_size(
+                circle_position + egui::vec2(0., 1.5 * duration_height),
+                egui::Vec2::splat(duration_height),
+            ),
             egui::DragValue::new(&mut self.remaining_duration)
                 .update_while_editing(false)
-                .speed(0.05)
+                .speed(0.05),
         );
-        self.response_duration_id = Some(response_duration.id);
+        ui.put(
+            egui::Rect::from_center_size(
+                circle_position + egui::vec2(0., 3. * duration_height),
+                egui::Vec2::splat(duration_height),
+            ),
+            egui::DragValue::new(&mut self.priority)
+                .update_while_editing(false)
+                .speed(0.05),
+        );
     }
 }
