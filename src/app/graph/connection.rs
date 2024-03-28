@@ -29,11 +29,26 @@ enum Color {
 impl Into<Vec<egui::Color32>> for Color {
     fn into(self) -> Vec<egui::Color32> {
         match self {
-            Color::Default => vec![egui::Color32::LIGHT_GRAY, egui::Color32::DARK_GRAY],
+            Color::Default => vec![
+                egui::Color32::GRAY,
+                egui::Color32::GRAY,
+                egui::Color32::GRAY,
+                egui::Color32::GRAY,
+                egui::Color32::GRAY,
+                egui::Color32::DARK_GRAY,
+            ],
             Color::Active => vec![
-                egui::Color32::LIGHT_GRAY,
                 egui::Color32::DARK_GREEN,
-                egui::Color32::LIGHT_GRAY,
+                egui::Color32::DARK_GREEN,
+                egui::Color32::DARK_GREEN,
+                egui::Color32::DARK_GREEN,
+                egui::Color32::DARK_GREEN,
+                egui::Color32::DARK_GREEN,
+                egui::Color32::GREEN,
+                egui::Color32::GREEN,
+                egui::Color32::GREEN,
+                egui::Color32::GREEN,
+                egui::Color32::GREEN,
                 egui::Color32::GREEN,
             ],
             Color::Blocking => vec![
@@ -188,7 +203,7 @@ impl Connection {
         let color_2: Vec<egui::Color32> = color_2.into();
 
         const WIDTH: f32 = 7.;
-        const ARROW_SPACING: f32 = 8.;
+        const ARROW_SPACING: f32 = 3.;
         const ARROW_DEPTH: f32 = 3.;
         const SCROLL_SPEED_IN_POINTS_PER_SECOND: f32 = 4.;
 
