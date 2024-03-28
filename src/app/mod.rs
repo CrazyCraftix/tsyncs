@@ -198,11 +198,10 @@ impl eframe::App for App {
                                 .show_save_single_file();
 
                             match path_result {
-                                Ok(Some(pathBuffer)) => {
-                                    let filename = pathBuffer.to_str().unwrap();
+                                Ok(Some(path_buffer)) => {
+                                    let filename = path_buffer.to_str().unwrap();
                                     let csv = self.graph.to_csv();
-                                    let mut file_result = std::fs::File::create(filename);
-                                    match file_result {
+                                    match std::fs::File::create(filename) {
                                         Ok(mut file) => {
                                             file.write(csv.as_bytes()).unwrap();
                                         }
