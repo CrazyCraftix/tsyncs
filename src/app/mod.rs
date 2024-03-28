@@ -12,30 +12,37 @@ impl Default for App {
         let mut a2 = graph::ActivityNode::new(egui::pos2(300., 100.));
         a2.task_name = "Task 2".into();
         a2.activity_name = "Activiy 2".into();
+        a2.duration = 3;
 
         let mut a1 = graph::ActivityNode::new(egui::pos2(150., 250.));
         a1.task_name = "Task 1".into();
         a1.activity_name = "Activiy 1".into();
+        a1.duration = 3;
 
         let mut a5b = graph::ActivityNode::new(egui::pos2(150., 400.));
         a5b.task_name = "Task 5".into();
         a5b.activity_name = "Activiy 5b".into();
+        a5b.duration = 1;
 
         let mut a5a = graph::ActivityNode::new(egui::pos2(450., 400.));
         a5a.task_name = "Task 5".into();
         a5a.activity_name = "Activiy 5a".into();
+        a5a.duration = 2;
 
         let mut a3 = graph::ActivityNode::new(egui::pos2(450., 250.));
         a3.task_name = "Task 3".into();
         a3.activity_name = "Activiy 3".into();
+        a3.duration = 2;
 
         let mut a4 = graph::ActivityNode::new(egui::pos2(600., 100.));
         a4.task_name = "Task 4".into();
         a4.activity_name = "Activiy 4".into();
+        a4.duration = 3;
 
         let mut a6 = graph::ActivityNode::new(egui::pos2(750., 250.));
         a6.task_name = "Task 6".into();
         a6.activity_name = "Activiy 6".into();
+        a6.duration = 3;
 
         let m24 = graph::MutexNode::new((a2.pos + a4.pos.to_vec2()) / 2.);
         let m12 = graph::MutexNode::new((a1.pos + a2.pos.to_vec2()) / 2.);
