@@ -13,6 +13,7 @@ pkgs.mkShell rec {
 		xorg.libXrandr
 		xorg.libXi
 		libglvnd
+		libsForQt5.kdialog
 	];
 	LD_LIBRARY_PATH="${pkgs.libglvnd}/lib:${pkgs.libxkbcommon}/lib:${pkgs.xorg.libX11}/lib";
 }

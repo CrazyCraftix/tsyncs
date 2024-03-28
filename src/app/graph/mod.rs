@@ -74,10 +74,10 @@ impl Graph {
                     if values.len() < 6 {
                         continue;
                     }
-                    let id = values[1]
-                        .trim()
-                        .parse::<usize>()
-                        .map_err(|_| format!("Error while parsing ID in line: {}", line_number))?;
+                    let id =
+                        ActivityNodeId(values[1].trim().parse::<usize>().map_err(|_| {
+                            format!("Error while parsing ID in line: {}", line_number)
+                        })?);
                     let task_name = values[2].to_string();
                     let activity_name = values[3].to_string();
                     let duration = values[4].parse::<u32>().map_err(|_| {
@@ -105,10 +105,9 @@ impl Graph {
                     activity_node.activity_name = activity_name;
                     activity_node.duration = duration;
                     //activity_node.priority = priority;
-                    graph.add_activiy_node(activity_node);
+                    graph.add_activiy_node_with_id(activity_node, id);
 
-                    activity_node_to_mutex_connections
-                        .push((ActivityNodeId(id), mutex_connections));
+                    activity_node_to_mutex_connections.push((id, mutex_connections));
                 }
                 "mutex" => {
                     if values.len() < 3 {
