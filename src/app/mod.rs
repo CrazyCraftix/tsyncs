@@ -286,6 +286,7 @@ impl eframe::App for App {
                             ui.label("ticks remaining");
                             ui.add(
                                 egui::DragValue::new(&mut self.graph.remaining_ticks_to_run)
+                                    .update_while_editing(false)
                                     .speed(0.1)
                                     .clamp_range(range)
                                     .max_decimals(0),
