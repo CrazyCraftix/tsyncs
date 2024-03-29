@@ -3,7 +3,9 @@
 A simple viewer and simulator for task charts.
 
 ## Tutorial
-tsyncs offers a convinient way to load and visualize task charts. To load a task select `File -> Open` and select a CSV file containing the task chart. The task chart will be displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
+tsyncs offers a convinient way to load and visualize task charts. To load a task select `File -> Import Graph...` and select a CSV file containing the task chart. You can also export the current graph as CSV file by selecting `File -> Export Graph...` The task chart will be displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
+
+
 
 The tasks and mutexes are connected by arrows, which represent the dependencies between the tasks. The arrows are colored based on where the tasks are flowing. A runing task is highlighted by a green border, a waiting task is highlighted with a red boarder.
 
