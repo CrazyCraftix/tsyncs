@@ -3,9 +3,10 @@ use std::{
     io::{BufRead as _, Write as _},
 };
 
-use egui::Label;
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 use self::graph::Graph;
+use std::future;
 
 mod graph;
 mod graphics;
@@ -16,6 +17,11 @@ mod graphics;
 #[serde(default)]
 pub struct App {
     graph: Graph,
+
+    #[serde(skip)]
+    text_channel: (Sender<String>, Receiver<String>),
+    #[serde(skip)]
+    file_buffer: String,
 }
 
 impl Default for App {
@@ -121,7 +127,11 @@ impl Default for App {
         graph.connect(a5a, m5a5b, graph::connection::Direction::ActivityToMutex);
         graph.connect(a5b, m5a5b, graph::connection::Direction::MutexToActivity);
 
-        Self { graph }
+        Self {
+            graph,
+            text_channel: channel(),
+            file_buffer: Default::default(),
+        }
     }
 }
 
@@ -146,100 +156,52 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // menu bar
+        if let Ok(text) = self.text_channel.1.try_recv() {
+            self.file_buffer = text;
+        }
+
+        if !self.file_buffer.is_empty() {
+            match Graph::from_csv(&self.file_buffer) {
+                Ok(graph) => {
+                    self.graph = graph;
+                }
+                Err(e) => {
+                    rfd::MessageDialog::new()
+                        .set_title("Error")
+                        .set_description(&format!("Failed to import graph: {}", e))
+                        .set_level(rfd::MessageLevel::Error)
+                        .show();
+                }
+            }
+            self.file_buffer.clear();
+        }
+
         egui::TopBottomPanel::top("top_panel")
             .min_height(0.)
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     egui::menu::menu_button(ui, "File", |ui| {
-                        #[cfg(not(target_arch = "wasm32"))]
-                        if ui.button("Open Graph...").clicked() {
-                            let path_result = native_dialog::FileDialog::new()
-                                .set_location(&dirs::home_dir().unwrap())
-                                .add_filter("Comma Separated Values", &["csv"])
-                                .add_filter("All files", &["*"])
-                                .show_open_single_file();
-
-                            match path_result {
-                                Ok(Some(path_buffer)) => {
-                                    let filename = path_buffer.to_str().unwrap();
-                                    let lines = std::io::BufReader::new(
-                                        std::fs::File::open(filename).unwrap(),
-                                    )
-                                    .lines();
-
-                                    match Graph::from_csv(lines) {
-                                        Ok(graph) => {
-                                            self.graph = graph;
-                                        }
-                                        Err(e) => {
-                                            native_dialog::MessageDialog::new()
-                                                .set_type(native_dialog::MessageType::Error)
-                                                .set_title("Parser Error")
-                                                .set_text(&format!("{}", e))
-                                                .show_alert()
-                                                .unwrap();
-                                        }
-                                    }
+                        if ui.button("⬅ Import Graph").clicked() {
+                            let sender = self.text_channel.0.clone();
+                            let task = rfd::AsyncFileDialog::new().add_filter("Comma Seperated Values", &["csv"]).add_filter("All Files", &["*"]).pick_file();
+                            execute(async move {
+                                let file = task.await;
+                                if let Some(file) = file {
+                                    let text = file.read().await;
+                                    let _ = sender.send(String::from_utf8_lossy(&text).to_string());
                                 }
-                                Ok(None) => {}
-                                Err(e) => {
-                                    native_dialog::MessageDialog::new()
-                                        .set_type(native_dialog::MessageType::Error)
-                                        .set_title("Error")
-                                        .set_text(&format!("Error: {}", e))
-                                        .show_alert()
-                                        .unwrap();
-                                }
-                            }
+                            });
                         }
 
-                        #[cfg(not(target_arch = "wasm32"))]
-                        if ui.button("Save Graph As...").clicked() {
-                            let path_result = native_dialog::FileDialog::new()
-                                .set_location(&dirs::home_dir().unwrap())
-                                .add_filter("Comma Separated Values", &["csv"])
-                                .add_filter("All files", &["*"])
-                                .show_save_single_file();
-
-                            match path_result {
-                                Ok(Some(path_buffer)) => {
-                                    let filename = path_buffer.to_str().unwrap();
-                                    let csv = self.graph.to_csv();
-                                    match std::fs::File::create(filename) {
-                                        Ok(mut file) => {
-                                            file.write(csv.as_bytes()).unwrap();
-                                        }
-                                        Err(e) => {
-                                            native_dialog::MessageDialog::new()
-                                                .set_type(native_dialog::MessageType::Error)
-                                                .set_title("Error")
-                                                .set_text(&format!("{}", e))
-                                                .show_alert()
-                                                .unwrap();
-                                        }
-                                    }
+                        if ui.button("➡ Export Graph").clicked() {
+                            let task = rfd::AsyncFileDialog::new().add_filter("Comma Seperated Values", &["csv"]).add_filter("All Files", &["*"]).save_file();
+                            let contents = self.graph.to_csv();
+                            execute(async move {
+                                let file = task.await;
+                                if let Some(file) = file {
+                                    _ = file.write(contents.as_bytes()).await;
                                 }
-                                Ok(None) => {}
-                                Err(e) => {
-                                    native_dialog::MessageDialog::new()
-                                        .set_type(native_dialog::MessageType::Error)
-                                        .set_title("Error")
-                                        .set_text(&format!("Error: {}", e))
-                                        .show_alert()
-                                        .unwrap();
-                                }
-                            }
-                        }
-
-                        #[cfg(target_arch = "wasm32")]
-                        if ui.button("Download Graph").clicked() {
-                            // download file
-                        }
-
-                        #[cfg(target_arch = "wasm32")]
-                        if ui.button("Upload Graph").clicked() {
-                            // upload file
+                            });
                         }
                     });
                 });
@@ -304,4 +266,14 @@ impl eframe::App for App {
             });
         });
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn execute<F: future::Future<Output = ()> + Send + 'static>(f: F) {
+    std::thread::spawn(move || futures::executor::block_on(f));
+}
+
+#[cfg(target_arch = "wasm32")]
+fn execute<F: future::Future<Output = ()> + 'static>(f: F) {
+    wasm_bindgen_futures::spawn_local(f);
 }

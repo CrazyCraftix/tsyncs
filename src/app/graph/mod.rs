@@ -2,7 +2,7 @@ mod activity_node;
 pub mod connection;
 mod mutex_node;
 
-use std::{default, fs::File, io};
+use std::io::{self, Lines};
 
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
@@ -76,11 +76,11 @@ impl Default for Graph {
 
 // import/export
 impl Graph {
-    pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
+    pub fn from_csv(text: &String) -> Result<Self, Box<String>> {
         const SEPERATOR: char = ';';
         let mut graph = Graph::default();
 
-        for (line_number, line) in lines.flatten().enumerate() {
+        for (line_number, line) in text.lines().enumerate() {
             let line_number = line_number + 1; // enumerate starts at 0
 
             // split returns at least 1 empty string -> subsequent values[0] are fine
