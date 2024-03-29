@@ -2,7 +2,7 @@ mod activity_node;
 pub mod connection;
 mod mutex_node;
 
-use std::{fs::File, io};
+use std::{default, fs::File, io};
 
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
@@ -39,9 +39,7 @@ impl std::ops::DerefMut for MutexNodeId {
     }
 }
 
-const SECONDS_PER_TICK: f32 = 1.;
-
-#[derive(Default, serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct Graph {
     activity_nodes: indexmap::IndexMap<ActivityNodeId, ActivityNode>,
     mutex_nodes: std::collections::HashMap<MutexNodeId, MutexNode>,
@@ -55,6 +53,25 @@ pub struct Graph {
     next_mutex_id: MutexNodeId,
 
     tick_progress: f32,
+
+    pub ticks_per_second: f32,
+
+    pub remaining_ticks_to_run: i32,
+}
+
+impl Default for Graph {
+    fn default() -> Self {
+        Self {
+            activity_nodes: indexmap::IndexMap::new(),
+            mutex_nodes: std::collections::HashMap::new(),
+            connections: std::collections::HashMap::new(),
+            next_activity_id: ActivityNodeId(0),
+            next_mutex_id: MutexNodeId(0),
+            tick_progress: 0.,
+            ticks_per_second: 1.,
+            remaining_ticks_to_run: -1,
+        }
+    }
 }
 
 // import/export
@@ -290,17 +307,46 @@ impl Graph {
 // simulation
 impl Graph {
     fn tick(&mut self, ui: &egui::Ui) {
-        let previous_tick_progress = self.tick_progress;
-        self.tick_progress += ui.ctx().input(|i| i.stable_dt) / SECONDS_PER_TICK;
-        if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
-            self.tick_a();
-            self.do_per_connection(|c, a, m| c.tick(a, m));
+        if self.remaining_ticks_to_run != 0 {
+            let previous_tick_progress = self.tick_progress;
+            self.tick_progress += ui.ctx().input(|i| i.stable_dt) * self.ticks_per_second;
+            if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
+                self.tick_a();
+                self.do_per_connection(|c, a, m| c.tick(a, m));
+            }
         }
         if self.tick_progress >= 1. {
+            if self.remaining_ticks_to_run > 0 {
+                self.remaining_ticks_to_run -= 1;
+            }
             self.tick_progress %= 1.;
             self.tick_b();
             self.do_per_connection(|c, a, m| c.tick(a, m));
         }
+    }
+
+    pub fn queue_tick(&mut self) {
+        if self.remaining_ticks_to_run >= 0 {
+            self.remaining_ticks_to_run += 1;
+        }
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.remaining_ticks_to_run < 0
+    }
+
+    pub fn toggle_play_pause(&mut self) {
+        self.remaining_ticks_to_run = match self.remaining_ticks_to_run {
+            -1 => 1,
+            _ => -1,
+        }
+    }
+
+    fn single_tick(&mut self) {
+        self.tick_a();
+        self.do_per_connection(|c, a, m| c.tick(a, m));
+        self.tick_b();
+        self.do_per_connection(|c, a, m| c.tick(a, m));
     }
 
     fn tick_a(&mut self) {

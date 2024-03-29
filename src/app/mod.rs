@@ -1,4 +1,9 @@
-use std::io::{BufRead as _, Write as _};
+use std::{
+    fmt::format,
+    io::{BufRead as _, Write as _},
+};
+
+use egui::Label;
 
 use self::graph::Graph;
 
@@ -244,7 +249,41 @@ impl eframe::App for App {
         egui::TopBottomPanel::bottom("bottom_panel")
             .min_height(0.)
             .show(ctx, |ui| {
-                egui::warn_if_debug_build(ui);
+                egui::menu::bar(ui, |ui| {
+                    egui::warn_if_debug_build(ui);
+                    ui.style_mut().spacing.slider_width = 250.;
+                    ui.add(
+                        egui::widgets::Slider::new(&mut self.graph.ticks_per_second, 0.1..=50.0)
+                            .text("Animation Speed")
+                            .logarithmic(true)
+                            .max_decimals(2),
+                    );
+                    if ui
+                        .button(format!(
+                            "{}",
+                            match self.graph.is_running() {
+                                true => "Pause",
+                                false => "Play",
+                            }
+                        ))
+                        .clicked()
+                    {
+                        self.graph.toggle_play_pause();
+                    };
+                    if !self.graph.is_running() {
+                        let range = match self.graph.remaining_ticks_to_run {
+                            0 => 0..=1000,
+                            _ => 1..=1000,
+                        };
+                        ui.add(egui::DragValue::new(&mut self.graph.remaining_ticks_to_run)
+                            .speed(1.)
+                            .clamp_range(range).max_decimals(0));
+                        ui.label("remaining ticks");
+                        if ui.button("Single Step").clicked() {
+                            self.graph.queue_tick();
+                        }
+                    }
+                });
             });
 
         // main panel
