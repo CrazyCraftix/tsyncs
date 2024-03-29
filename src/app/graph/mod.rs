@@ -7,7 +7,9 @@ use std::{fs::File, io};
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
 
-#[derive(PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize,
+)]
 pub struct ActivityNodeId(usize);
 impl std::ops::Deref for ActivityNodeId {
     type Target = usize;
@@ -21,7 +23,9 @@ impl std::ops::DerefMut for ActivityNodeId {
     }
 }
 
-#[derive(PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(
+    PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize,
+)]
 pub struct MutexNodeId(usize);
 impl std::ops::Deref for MutexNodeId {
     type Target = usize;
@@ -35,7 +39,7 @@ impl std::ops::DerefMut for MutexNodeId {
     }
 }
 
-const SECONDS_PER_TICK: f32 = 0.2;
+const SECONDS_PER_TICK: f32 = 1.;
 
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct Graph {
@@ -56,110 +60,86 @@ pub struct Graph {
 // import/export
 impl Graph {
     pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
-        let seperator = ';';
+        const SEPERATOR: char = ';';
         let mut graph = Graph::default();
 
-        let mut activity_node_to_mutex_connections: Vec<(ActivityNodeId, Vec<MutexNodeId>)> =
-            Vec::new();
-        let mut mutex_node_to_activity_connections: Vec<(MutexNodeId, Vec<ActivityNodeId>)> =
-            Vec::new();
-
         for (line_number, line) in lines.flatten().enumerate() {
-            let values = line.split(seperator).collect::<Vec<&str>>();
+            let line_number = line_number + 1; // enumerate starts at 0
+
+            // split returns at least 1 empty string -> subsequent values[0] are fine
+            let values = line.split(SEPERATOR).map(|s| s.trim()).collect::<Vec<_>>();
 
             // match first value to determine type of line
             match values[0].to_lowercase().as_str() {
-                "task" => {
-                    if values.len() < 6 {
-                        continue;
-                    }
-                    let id =
-                        ActivityNodeId(values[1].trim().parse::<usize>().map_err(|_| {
+                "task" if values.len() >= 6 => {
+                    let activity_id =
+                        ActivityNodeId(values[1].parse::<usize>().map_err(|_| {
                             format!("Error while parsing ID in line: {}", line_number)
                         })?);
-                    let task_name = values[2].to_string();
-                    let activity_name = values[3].to_string();
-                    let duration = values[4].parse::<u32>().map_err(|_| {
+
+                    let mut activity_node = ActivityNode::new(egui::Pos2 { x: 0., y: 0. });
+                    activity_node.task_name = values[2].to_string();
+                    activity_node.activity_name = values[3].to_string();
+                    activity_node.duration = values[4].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Duration in line: {}", line_number)
                     })?;
-                    let priority = values[5].parse::<u32>().map_err(|_| {
+                    activity_node.priority = values[5].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Priority in line: {}", line_number)
                     })?;
-                    let mutex_connections = values[6..]
+                    graph.add_activiy_node_with_id(activity_node, activity_id);
+
+                    values[6..]
                         .iter()
                         .filter(|x| !x.is_empty())
-                        .map(|x| {
-                            x.parse::<usize>()
-                                .map_err(|_| {
-                                    format!(
-                                        "Error while parsing Mutex Connection in line: {}",
-                                        line_number
-                                    )
-                                })
-                                .map(|x| MutexNodeId(x))
+                        .find_map(|x| match x.parse::<usize>() {
+                            Ok(mutex_id) => {
+                                graph.connect(
+                                    activity_id,
+                                    MutexNodeId(mutex_id),
+                                    connection::Direction::ActivityToMutex,
+                                );
+                                None
+                            }
+                            Err(_) => Some(Err(format!(
+                                "Error while parsing Activity Connection in line: {}",
+                                line_number
+                            ))),
                         })
-                        .collect::<Result<Vec<MutexNodeId>, String>>()?;
-                    let mut activity_node = ActivityNode::new(egui::Pos2 { x: 0., y: 0. });
-                    activity_node.task_name = task_name;
-                    activity_node.activity_name = activity_name;
-                    activity_node.duration = duration;
-                    activity_node.priority = priority;
-                    graph.add_activiy_node_with_id(activity_node, id);
-
-                    activity_node_to_mutex_connections.push((id, mutex_connections));
+                        .unwrap_or(Ok(()))?;
                 }
-                "mutex" => {
-                    if values.len() < 3 {
-                        continue;
-                    }
-                    let id =
+
+                "mutex" if values.len() >= 3 => {
+                    let mutex_id =
                         MutexNodeId(values[1].parse::<usize>().map_err(|_| {
                             format!("Error while parsing ID in line: {}", line_number)
                         })?);
-                    let value = values[2].parse::<u32>().map_err(|_| {
-                        format!("Error while parsing Value in line: {}", line_number)
-                    })?;
-                    let activity_connections = values[3..]
-                        .iter()
-                        .filter(|x| !x.is_empty())
-                        .map(|x| {
-                            x.parse::<usize>()
-                                .map_err(|_| {
-                                    format!(
-                                        "Error while parsing Activity Connection in line: {}",
-                                        line_number
-                                    )
-                                })
-                                .map(|x| ActivityNodeId(x))
-                        })
-                        .collect::<Result<Vec<ActivityNodeId>, String>>()?;
 
                     let mut mutex_node = MutexNode::new(egui::Pos2 { x: 0., y: 0. });
-                    mutex_node.value = value;
-                    graph.add_mutex_node_with_id(mutex_node, id);
+                    mutex_node.value = values[2].parse::<u32>().map_err(|_| {
+                        format!("Error while parsing Value in line: {}", line_number)
+                    })?;
+                    graph.add_mutex_node_with_id(mutex_node, mutex_id);
 
-                    mutex_node_to_activity_connections.push((id, activity_connections));
+                    values[3..]
+                        .iter()
+                        .filter(|x| !x.is_empty())
+                        .find_map(|x| match x.parse::<usize>() {
+                            Ok(activity_id) => {
+                                graph.connect(
+                                    ActivityNodeId(activity_id),
+                                    mutex_id,
+                                    connection::Direction::MutexToActivity,
+                                );
+                                None
+                            }
+                            Err(_) => Some(Err(format!(
+                                "Error while parsing Activity Connection in line: {}",
+                                line_number
+                            ))),
+                        })
+                        .unwrap_or(Ok(()))?;
                 }
                 _ => {} // skip line
-            }
-        }
-        for (activity_id, mutex_ids) in activity_node_to_mutex_connections {
-            for mutex_id in mutex_ids {
-                graph.connect(
-                    activity_id,
-                    mutex_id,
-                    connection::Direction::ActivityToMutex,
-                );
-            }
-        }
-
-        for (mutex_id, activity_ids) in mutex_node_to_activity_connections {
-            for activity_id in activity_ids {
-                graph.connect(
-                    activity_id,
-                    mutex_id,
-                    connection::Direction::MutexToActivity,
-                );
             }
         }
         return Ok(graph);
@@ -273,15 +253,8 @@ impl Graph {
         activity_id: ActivityNodeId,
         mutex_id: MutexNodeId,
         direction: connection::Direction,
-    ) -> bool {
-        if !self.mutex_nodes.contains_key(&mutex_id)
-            || !self.activity_nodes.contains_key(&activity_id)
-        {
-            return false;
-        }
-
+    ) {
         let mut activity_connections = self.connections.remove(&activity_id).unwrap_or_default();
-
         let connection = match activity_connections.remove(&mutex_id) {
             Some(mut previous_connection) if previous_connection.direction != direction => {
                 previous_connection.direction = connection::Direction::TwoWay;
@@ -290,11 +263,8 @@ impl Graph {
             Some(previous_connection) => previous_connection,
             None => connection::Connection::new(direction),
         };
-
         activity_connections.insert(mutex_id, connection);
         self.connections.insert(activity_id, activity_connections);
-
-        true
     }
 
     fn do_per_connection<F>(&mut self, mut action: F)
