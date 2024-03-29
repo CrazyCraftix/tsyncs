@@ -1,11 +1,9 @@
 <img src="assets/Logo.svg" alt="drawing" width="400"/>
 
-A simple viewer and simulator for task charts.
+A simple viewer and simulator for task charts. 
 
 ## Tutorial
 tsyncs offers a convinient way to load and visualize task charts. To load a task select `File -> Import Graph...` and select a CSV file containing the task chart. You can also export the current graph as CSV file by selecting `File -> Export Graph...` The task chart will be displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
-
-
 
 The tasks and mutexes are connected by arrows, which represent the dependencies between the tasks. The arrows are colored based on where the tasks are flowing. A runing task is highlighted by a green border, a waiting task is highlighted with a red boarder.
 
@@ -13,10 +11,9 @@ You can change the duration of a task by changing the value in the upper right c
 
 If you want to change the value of a mutex by clicking in the middle of the mutex and typing in the new value or dragging your mouse or finger left and right.
 
-You can change the simulation speed by using the slider in the `Animation Speed` bottom right corner. The simulation speed represents the number of ticks per second. One tick will reduce the remaining time of the active task by one.
+You can change the simulation speed by using the slider in the `Ticks per Second` bottom right corner. The simulation speed represents the number of ticks per second. One tick will reduce the remaining time of the active task by one.
 
-You can also pause the animation by clicking the `Pause` button. if the animation is paused, a text field with the remaining ticks will be displayed. You can change the remaining ticks by clicking on the text field and typing in the new value or dragging your mouse or finger left and right. You can also run a single tick by clicking the `Single Step` button.
-
+You can also pause the animation by clicking the Pause ⏸ button. If the animation is paused, a text field with the remaining ticks will be displayed. You can change the remaining ticks by clicking on the text field and typing in the new value or dragging your mouse or finger left and right. You can also run a single tick by clicking the `Single Step` button. By clicking Play ▶️ you can continue the automatic simulation.
 ### File format
 You can Import and Export your task as CSV files. The CSV file has the following header:
 ```csv
