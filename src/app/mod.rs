@@ -298,9 +298,20 @@ impl eframe::App for App {
         // main panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
-                graphics::PanZoomContainer::new().show(ui, |ui| {
-                    self.graph.draw(ui);
-                });
+                let mut transform = Default::default();
+                let response = graphics::PanZoomContainer::new()
+                    .show(ui, |ui, tr| {
+                        transform = tr;
+                        self.graph.draw(ui);
+                    })
+                    .response;
+
+                if response.secondary_clicked() {
+                    if let Some(pos) = response.interact_pointer_pos() {
+                        let pos = transform.inverse() * pos;
+                        self.graph.add_activiy_node(graph::ActivityNode::new(pos));
+                    }
+                }
             });
         });
     }
