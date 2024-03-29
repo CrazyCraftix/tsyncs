@@ -300,19 +300,13 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
                 let mut transform = Default::default();
-                let response = graphics::PanZoomContainer::new()
-                    .show(ui, |ui, tr| {
-                        transform = tr;
+                graphics::PanZoomContainer::new()
+                    .show(ui, |ui, container_transform, container_response| {
+                        transform = container_transform;
+                        self.graph.tick(ui);
+                        self.graph.interact(ui, container_transform, container_response);
                         self.graph.draw(ui);
-                    })
-                    .response;
-
-                if response.secondary_clicked() {
-                    if let Some(pos) = response.interact_pointer_pos() {
-                        let pos = transform.inverse() * pos;
-                        self.graph.add_activiy_node(graph::ActivityNode::new(pos));
-                    }
-                }
+                    });
             });
         });
     }

@@ -306,7 +306,7 @@ impl Graph {
 
 // simulation
 impl Graph {
-    fn tick(&mut self, ui: &egui::Ui) {
+    pub fn tick(&mut self, ui: &egui::Ui) {
         if self.remaining_ticks_to_run != 0 {
             let previous_tick_progress = self.tick_progress;
             self.tick_progress += ui.ctx().input(|i| i.stable_dt) * self.ticks_per_second;
@@ -429,23 +429,34 @@ impl Graph {
     }
 }
 
-// drawing
+// ux
 impl Graph {
-    pub fn draw(&mut self, ui: &mut egui::Ui) {
-        self.tick(ui);
+    pub fn interact(
+        &mut self,
+        ui: &mut egui::Ui,
+        container_transform: egui::emath::TSTransform,
+        container_response: &egui::Response,
+    ) {
+        self.activity_nodes
+            .iter_mut()
+            .for_each(|(_, node)| node.interact(ui));
 
+        self.mutex_nodes
+            .iter_mut()
+            .for_each(|(_, node)| node.interact(ui));
+
+        if container_response.secondary_clicked() {
+            if let Some(pos) = container_response.interact_pointer_pos() {
+                let pos = container_transform.inverse() * pos;
+                self.add_activiy_node(ActivityNode::new(pos));
+            }
+        }
+    }
+
+    pub fn draw(&mut self, ui: &mut egui::Ui) {
         ui.style_mut().spacing.interact_size = egui::Vec2::ZERO;
         ui.style_mut().spacing.button_padding = egui::Vec2::ZERO;
         ui.style_mut().interaction.multi_widget_text_select = false;
-
-        // interact
-        for (_, node) in &mut self.activity_nodes {
-            node.interact(ui);
-        }
-
-        for (_, node) in &mut self.mutex_nodes {
-            node.interact(ui);
-        }
 
         // draw
         let tick_progress = self.tick_progress;
