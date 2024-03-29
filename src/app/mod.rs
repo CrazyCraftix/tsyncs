@@ -127,7 +127,7 @@ impl Default for App {
 
 impl App {
     pub fn new(creation_context: &eframe::CreationContext<'_>) -> Self {
-        //creation_context.egui_ctx.set_zoom_factor(2.);
+        creation_context.egui_ctx.set_visuals(egui::Visuals::dark());
 
         // load previous app state, if it exists
         if let Some(storage) = creation_context.storage {
@@ -156,7 +156,7 @@ impl eframe::App for App {
                         if ui.button("Open Graph...").clicked() {
                             let path_result = native_dialog::FileDialog::new()
                                 .set_location(&dirs::home_dir().unwrap())
-                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("Comma Separated Values", &["csv"])
                                 .add_filter("All files", &["*"])
                                 .show_open_single_file();
 
@@ -198,7 +198,7 @@ impl eframe::App for App {
                         if ui.button("Save Graph As...").clicked() {
                             let path_result = native_dialog::FileDialog::new()
                                 .set_location(&dirs::home_dir().unwrap())
-                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("Comma Separated Values", &["csv"])
                                 .add_filter("All files", &["*"])
                                 .show_save_single_file();
 
@@ -242,47 +242,56 @@ impl eframe::App for App {
                             // upload file
                         }
                     });
-                    egui::widgets::global_dark_light_mode_buttons(ui);
                 });
             });
 
         egui::TopBottomPanel::bottom("bottom_panel")
-            .min_height(0.)
+            .min_height(25.)
             .show(ctx, |ui| {
-                egui::menu::bar(ui, |ui| {
+                ui.horizontal_centered(|ui| {
                     egui::warn_if_debug_build(ui);
-                    ui.style_mut().spacing.slider_width = 250.;
+                    ui.style_mut().spacing.slider_width = 175.;
                     ui.add(
                         egui::widgets::Slider::new(&mut self.graph.ticks_per_second, 0.1..=50.0)
-                            .text("Animation Speed")
+                            .text("ticks per second")
                             .logarithmic(true)
                             .max_decimals(2),
                     );
-                    if ui
-                        .button(format!(
-                            "{}",
-                            match self.graph.is_running() {
-                                true => "Pause",
-                                false => "Play",
-                            }
-                        ))
-                        .clicked()
-                    {
-                        self.graph.toggle_play_pause();
-                    };
-                    if !self.graph.is_running() {
-                        let range = match self.graph.remaining_ticks_to_run {
-                            0 => 0..=1000,
-                            _ => 1..=1000,
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui
+                            .add(
+                                egui::Button::new(format!(
+                                    "{}",
+                                    match self.graph.is_running() {
+                                        true => "⏸",
+                                        false => "▶",
+                                    }
+                                ))
+                                .min_size(egui::vec2(25., 0.)),
+                            )
+                            .clicked()
+                        {
+                            self.graph.toggle_play_pause();
                         };
-                        ui.add(egui::DragValue::new(&mut self.graph.remaining_ticks_to_run)
-                            .speed(1.)
-                            .clamp_range(range).max_decimals(0));
-                        ui.label("remaining ticks");
-                        if ui.button("Single Step").clicked() {
-                            self.graph.queue_tick();
+                        if !self.graph.is_running() {
+                            let range = match self.graph.remaining_ticks_to_run {
+                                0 => 0..=1000,
+                                _ => 1..=1000,
+                            };
+                            if ui.button("Single Step").clicked() {
+                                self.graph.queue_tick();
+                            }
+                            ui.separator();
+                            ui.label("ticks remaining");
+                            ui.add(
+                                egui::DragValue::new(&mut self.graph.remaining_ticks_to_run)
+                                    .speed(0.1)
+                                    .clamp_range(range)
+                                    .max_decimals(0),
+                            );
                         }
-                    }
+                    });
                 });
             });
 
