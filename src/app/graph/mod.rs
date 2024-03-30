@@ -308,20 +308,31 @@ impl Graph {
 impl Graph {
     pub fn tick(&mut self, ui: &egui::Ui) {
         if self.remaining_ticks_to_run != 0 {
-            let previous_tick_progress = self.tick_progress;
+            let mut previous_tick_progress = self.tick_progress;
             self.tick_progress += ui.ctx().input(|i| i.stable_dt) * self.ticks_per_second;
-            if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
-                self.tick_a();
-                self.do_per_connection(|c, a, m| c.tick(a, m));
+            loop {
+                if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
+                    self.tick_a();
+                    self.do_per_connection(|c, a, m| c.tick(a, m));
+                }
+                if self.tick_progress >= 1. {
+                    self.tick_b();
+                    self.do_per_connection(|c, a, m| c.tick(a, m));
+
+                    self.tick_progress -= 1.;
+                    if self.remaining_ticks_to_run > 0 {
+                        self.remaining_ticks_to_run -= 1;
+                        if self.remaining_ticks_to_run == 0 {
+                            self.tick_progress = 0.;
+                        }
+                    }
+
+                    // make sure tick_a() is called
+                    previous_tick_progress = 0.;
+                } else {
+                    break;
+                }
             }
-        }
-        if self.tick_progress >= 1. {
-            if self.remaining_ticks_to_run > 0 {
-                self.remaining_ticks_to_run -= 1;
-            }
-            self.tick_progress %= 1.;
-            self.tick_b();
-            self.do_per_connection(|c, a, m| c.tick(a, m));
         }
     }
 
