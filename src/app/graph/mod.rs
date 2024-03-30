@@ -2,8 +2,6 @@ mod activity_node;
 pub mod connection;
 mod mutex_node;
 
-use std::{fs::File, io};
-
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
 
@@ -88,11 +86,11 @@ impl Default for Graph {
 
 // import/export
 impl Graph {
-    pub fn from_csv(lines: io::Lines<io::BufReader<File>>) -> Result<Self, Box<String>> {
+    pub fn from_csv(text: &String) -> Result<Self, Box<String>> {
         const SEPERATOR: char = ';';
         let mut graph = Graph::default();
 
-        for (line_number, line) in lines.flatten().enumerate() {
+        for (line_number, line) in text.lines().enumerate() {
             let line_number = line_number + 1; // enumerate starts at 0
 
             // split returns at least 1 empty string -> subsequent values[0] are fine
@@ -246,6 +244,14 @@ impl Graph {
         }
 
         return csv;
+    }
+
+    pub fn to_json(&self) -> Result<String, String> {
+        serde_json::to_string(self).map_err(|_| "Error while serializing to JSON".into())
+    }
+
+    pub fn from_json(text: &String) -> Result<Self, Box<String>> {
+        serde_json::from_str(text).map_err(|e| e.to_string().into())
     }
 }
 
@@ -423,13 +429,6 @@ impl Graph {
             -1 => 1,
             _ => -1,
         }
-    }
-
-    fn single_tick(&mut self) {
-        self.tick_a();
-        self.do_per_connection(|c, a, m| c.tick(a, m));
-        self.tick_b();
-        self.do_per_connection(|c, a, m| c.tick(a, m));
     }
 
     fn tick_a(&mut self) {
