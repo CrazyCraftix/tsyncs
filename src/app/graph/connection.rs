@@ -1,4 +1,4 @@
-#[derive(PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Direction {
     MutexToActivity,
     ActivityToMutex,
@@ -21,7 +21,7 @@ enum ActivityToMutexState {
     Forwarding,
 }
 
-enum Color {
+pub enum Color {
     Default,
     Active,
     Blocking,
@@ -150,7 +150,7 @@ impl Connection {
 
         match self.direction {
             Direction::ActivityToMutex => {
-                Self::draw_connection(
+                Self::draw_arrow(
                     ui,
                     activity_node.pos,
                     mutex_node.pos,
@@ -160,7 +160,7 @@ impl Connection {
                 );
             }
             Direction::MutexToActivity => {
-                Self::draw_connection(
+                Self::draw_arrow(
                     ui,
                     mutex_node.pos,
                     activity_node.pos,
@@ -171,7 +171,7 @@ impl Connection {
             }
             Direction::TwoWay => {
                 let offset = (activity_node.pos - mutex_node.pos).normalized().rot90() * 6.;
-                Self::draw_connection(
+                Self::draw_arrow(
                     ui,
                     activity_node.pos + offset,
                     mutex_node.pos + offset,
@@ -179,7 +179,7 @@ impl Connection {
                     activity_to_mutex_color_2,
                     activity_to_mutex_progress,
                 );
-                Self::draw_connection(
+                Self::draw_arrow(
                     ui,
                     mutex_node.pos - offset,
                     activity_node.pos - offset,
@@ -191,7 +191,7 @@ impl Connection {
         }
     }
 
-    fn draw_connection(
+    pub fn draw_arrow(
         ui: &egui::Ui,
         from_point: egui::Pos2,
         to_point: egui::Pos2,

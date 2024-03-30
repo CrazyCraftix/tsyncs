@@ -39,7 +39,7 @@ impl PanZoomContainer {
     pub fn show<R>(
         self,
         ui: &mut egui::Ui,
-        add_contents: impl FnOnce(&mut egui::Ui) -> R,
+        add_contents: impl FnOnce(&mut egui::Ui, TSTransform, &egui::Response) -> R,
     ) -> egui::InnerResponse<R> {
         let id = ui.id().with(self.id_source);
 
@@ -60,7 +60,7 @@ impl PanZoomContainer {
             .with_layer_id(LayerId::new(egui::Order::Foreground, id), |ui| {
                 ui.set_clip_rect(state.transform.inverse() * rect);
                 ui.ctx().set_transform_layer(ui.layer_id(), state.transform);
-                add_contents(ui)
+                add_contents(ui, state.transform, &response)
             })
             .inner;
 

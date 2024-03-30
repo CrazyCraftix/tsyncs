@@ -2,10 +2,12 @@ mod activity_node;
 pub mod connection;
 mod mutex_node;
 
-use std::{default, fs::File, io};
+use std::{fs::File, io};
 
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
+
+use self::connection::Direction;
 
 #[derive(
     PartialOrd, Ord, Default, Hash, Clone, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize,
@@ -39,6 +41,12 @@ impl std::ops::DerefMut for MutexNodeId {
     }
 }
 
+#[derive(Clone, Copy)]
+enum AnyNode {
+    Activity(ActivityNodeId),
+    Mutex(MutexNodeId),
+}
+
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Graph {
     activity_nodes: indexmap::IndexMap<ActivityNodeId, ActivityNode>,
@@ -57,6 +65,9 @@ pub struct Graph {
     pub ticks_per_second: f32,
 
     pub remaining_ticks_to_run: i32,
+
+    #[serde(skip)]
+    currently_connecting_from: Option<AnyNode>,
 }
 
 impl Default for Graph {
@@ -70,6 +81,7 @@ impl Default for Graph {
             tick_progress: 0.,
             ticks_per_second: 1.,
             remaining_ticks_to_run: -1,
+            currently_connecting_from: None,
         }
     }
 }
@@ -113,7 +125,7 @@ impl Graph {
                                 graph.connect(
                                     activity_id,
                                     MutexNodeId(mutex_id),
-                                    connection::Direction::ActivityToMutex,
+                                    Direction::ActivityToMutex,
                                 );
                                 None
                             }
@@ -145,7 +157,7 @@ impl Graph {
                                 graph.connect(
                                     ActivityNodeId(activity_id),
                                     mutex_id,
-                                    connection::Direction::MutexToActivity,
+                                    Direction::MutexToActivity,
                                 );
                                 None
                             }
@@ -172,19 +184,19 @@ impl Graph {
         for (activity_id, activity_connections) in &self.connections {
             for (mutex_id, connection) in activity_connections {
                 match connection.direction {
-                    connection::Direction::ActivityToMutex => {
+                    Direction::ActivityToMutex => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
                             .or_insert_with(Vec::new)
                             .push(mutex_id.0);
                     }
-                    connection::Direction::MutexToActivity => {
+                    Direction::MutexToActivity => {
                         connection_mutex_to_activity
                             .entry(mutex_id.0)
                             .or_insert_with(Vec::new)
                             .push(activity_id.0);
                     }
-                    connection::Direction::TwoWay => {
+                    Direction::TwoWay => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
                             .or_insert_with(Vec::new)
@@ -239,7 +251,7 @@ impl Graph {
 
 // structure
 impl Graph {
-    pub fn add_activiy_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
+    pub fn add_activity_node(&mut self, activity_node: ActivityNode) -> ActivityNodeId {
         self.add_activiy_node_with_id(activity_node, self.next_activity_id)
     }
     pub fn add_activiy_node_with_id(
@@ -269,12 +281,12 @@ impl Graph {
         &mut self,
         activity_id: ActivityNodeId,
         mutex_id: MutexNodeId,
-        direction: connection::Direction,
+        direction: Direction,
     ) {
         let mut activity_connections = self.connections.remove(&activity_id).unwrap_or_default();
         let connection = match activity_connections.remove(&mutex_id) {
             Some(mut previous_connection) if previous_connection.direction != direction => {
-                previous_connection.direction = connection::Direction::TwoWay;
+                previous_connection.direction = Direction::TwoWay;
                 previous_connection
             }
             Some(previous_connection) => previous_connection,
@@ -282,6 +294,66 @@ impl Graph {
         };
         activity_connections.insert(mutex_id, connection);
         self.connections.insert(activity_id, activity_connections);
+    }
+
+    pub fn disconnect(
+        &mut self,
+        activity_id: ActivityNodeId,
+        mutex_id: MutexNodeId,
+        direction: Direction,
+    ) {
+        if let Some(mut activity_connections) = self.connections.remove(&activity_id) {
+            if let Some(mut connection) = activity_connections.remove(&mutex_id) {
+                if let Some(new_direction) = match (connection.direction, direction) {
+                    (Direction::MutexToActivity, Direction::ActivityToMutex) => {
+                        Some(Direction::MutexToActivity)
+                    }
+                    (Direction::ActivityToMutex, Direction::MutexToActivity) => {
+                        Some(Direction::ActivityToMutex)
+                    }
+                    (Direction::TwoWay, Direction::MutexToActivity) => {
+                        Some(Direction::ActivityToMutex)
+                    }
+                    (Direction::TwoWay, Direction::ActivityToMutex) => {
+                        Some(Direction::MutexToActivity)
+                    }
+                    _ => None,
+                } {
+                    connection.direction = new_direction;
+                    activity_connections.insert(mutex_id, connection);
+                }
+            };
+            self.connections.insert(activity_id, activity_connections);
+        }
+    }
+
+    pub fn is_connected(
+        &self,
+        activity_id: ActivityNodeId,
+        mutex_id: MutexNodeId,
+        direction: Direction,
+    ) -> bool {
+        self.connections
+            .get(&activity_id)
+            .map(|activity_connections| activity_connections.get(&mutex_id))
+            .flatten()
+            .map(|connection| {
+                connection.direction == direction || connection.direction == Direction::TwoWay
+            })
+            .unwrap_or(false)
+    }
+
+    pub fn toggle_connection(
+        &mut self,
+        activity_id: ActivityNodeId,
+        mutex_id: MutexNodeId,
+        direction: Direction,
+    ) {
+        if self.is_connected(activity_id, mutex_id, direction) {
+            self.disconnect(activity_id, mutex_id, direction);
+        } else {
+            self.connect(activity_id, mutex_id, direction);
+        }
     }
 
     fn do_per_connection<F>(&mut self, mut action: F)
@@ -306,22 +378,33 @@ impl Graph {
 
 // simulation
 impl Graph {
-    fn tick(&mut self, ui: &egui::Ui) {
+    pub fn tick(&mut self, ui: &egui::Ui) {
         if self.remaining_ticks_to_run != 0 {
-            let previous_tick_progress = self.tick_progress;
+            let mut previous_tick_progress = self.tick_progress;
             self.tick_progress += ui.ctx().input(|i| i.stable_dt) * self.ticks_per_second;
-            if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
-                self.tick_a();
-                self.do_per_connection(|c, a, m| c.tick(a, m));
+            loop {
+                if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
+                    self.tick_a();
+                    self.do_per_connection(|c, a, m| c.tick(a, m));
+                }
+                if self.tick_progress >= 1. {
+                    self.tick_b();
+                    self.do_per_connection(|c, a, m| c.tick(a, m));
+
+                    self.tick_progress -= 1.;
+                    if self.remaining_ticks_to_run > 0 {
+                        self.remaining_ticks_to_run -= 1;
+                        if self.remaining_ticks_to_run == 0 {
+                            self.tick_progress = 0.;
+                        }
+                    }
+
+                    // make sure tick_a() is called
+                    previous_tick_progress = 0.;
+                } else {
+                    break;
+                }
             }
-        }
-        if self.tick_progress >= 1. {
-            if self.remaining_ticks_to_run > 0 {
-                self.remaining_ticks_to_run -= 1;
-            }
-            self.tick_progress %= 1.;
-            self.tick_b();
-            self.do_per_connection(|c, a, m| c.tick(a, m));
         }
     }
 
@@ -374,7 +457,7 @@ impl Graph {
                     let prerequisites_missing = activity_connections
                         .iter()
                         .filter(|(_, connection)| {
-                            connection.direction != connection::Direction::ActivityToMutex
+                            connection.direction != Direction::ActivityToMutex
                         })
                         .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
                         .find(|mutex_node| mutex_node.value <= 0)
@@ -391,7 +474,7 @@ impl Graph {
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
-                            if connection.direction != connection::Direction::ActivityToMutex {
+                            if connection.direction != Direction::ActivityToMutex {
                                 self.mutex_nodes
                                     .get_mut(mutex_id)
                                     .map(|mutex_node| mutex_node.value -= 1);
@@ -417,7 +500,7 @@ impl Graph {
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
-                            if connection.direction != connection::Direction::MutexToActivity {
+                            if connection.direction != Direction::MutexToActivity {
                                 self.mutex_nodes
                                     .get_mut(mutex_id)
                                     .map(|mutex_node| mutex_node.value += 1);
@@ -429,23 +512,153 @@ impl Graph {
     }
 }
 
-// drawing
+// ux
 impl Graph {
-    pub fn draw(&mut self, ui: &mut egui::Ui) {
-        self.tick(ui);
+    pub fn interact(
+        &mut self,
+        ui: &mut egui::Ui,
+        container_transform: egui::emath::TSTransform,
+        container_response: &egui::Response,
+    ) {
+        // node interactions
+        let mut node_left_clicked = None;
+        let mut node_right_clicked = None;
+        self.activity_nodes.iter_mut().for_each(|(id, node)| {
+            if let Some(response) = node.interact(ui) {
+                if response.clicked() {
+                    node_left_clicked = Some(AnyNode::Activity(*id));
+                }
+                if response.secondary_clicked() {
+                    node_right_clicked = Some(AnyNode::Activity(*id));
+                }
+            }
+        });
+        self.mutex_nodes.iter_mut().for_each(|(id, node)| {
+            if let Some(response) = node.interact(ui) {
+                if response.clicked() {
+                    node_left_clicked = Some(AnyNode::Mutex(*id));
+                }
+                if response.secondary_clicked() {
+                    node_right_clicked = Some(AnyNode::Mutex(*id));
+                }
+            }
+        });
+        if self.currently_connecting_from.is_none() {
+            self.currently_connecting_from = node_right_clicked;
+            node_right_clicked = None;
+        }
 
+        // click existing node
+        if let Some(new_from_node) = match (
+            self.currently_connecting_from,
+            node_left_clicked.or(node_right_clicked),
+        ) {
+            (Some(AnyNode::Activity(from_activity_id)), Some(AnyNode::Mutex(to_mutex_id))) => {
+                self.toggle_connection(from_activity_id, to_mutex_id, Direction::ActivityToMutex);
+                Some(AnyNode::Mutex(to_mutex_id))
+            }
+            (Some(AnyNode::Mutex(from_mutex_id)), Some(AnyNode::Activity(to_activity_id))) => {
+                self.toggle_connection(to_activity_id, from_mutex_id, Direction::MutexToActivity);
+                Some(AnyNode::Activity(to_activity_id))
+            }
+            (
+                Some(AnyNode::Activity(from_activity_id)),
+                Some(AnyNode::Activity(to_activity_id)),
+            ) => {
+                if let (Some(from_activity), Some(to_activity)) = (
+                    self.activity_nodes.get(&from_activity_id),
+                    self.activity_nodes.get(&to_activity_id),
+                ) {
+                    let mutex_pos = from_activity.pos / 2. + to_activity.pos.to_vec2() / 2.;
+                    let mutex_id = self.add_mutex_node(MutexNode::new(mutex_pos));
+                    self.connect(from_activity_id, mutex_id, Direction::ActivityToMutex);
+                    self.connect(to_activity_id, mutex_id, Direction::MutexToActivity);
+                }
+                Some(AnyNode::Activity(to_activity_id))
+            }
+            (Some(AnyNode::Mutex(from_mutex_id)), Some(AnyNode::Mutex(to_mutex_id))) => {
+                if let (Some(from_mutex), Some(to_mutex)) = (
+                    self.mutex_nodes.get(&from_mutex_id),
+                    self.mutex_nodes.get(&to_mutex_id),
+                ) {
+                    let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
+                    let activity_id = self.add_activity_node(ActivityNode::new(activity_pos));
+                    self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
+                    self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
+                }
+                Some(AnyNode::Mutex(to_mutex_id))
+            }
+            _ => None,
+        } {
+            self.currently_connecting_from = match node_left_clicked.is_some() {
+                true => None,
+                false => Some(new_from_node),
+            };
+        }
+
+        // right click empty space (create nodes)
+        if container_response.secondary_clicked() {
+            if let Some(pos) = container_response.interact_pointer_pos() {
+                let pos = container_transform.inverse() * pos;
+                match self.currently_connecting_from {
+                    Some(AnyNode::Mutex(mutex_id)) => {
+                        let activity_id = self.add_activity_node(ActivityNode::new(pos));
+                        self.connect(activity_id, mutex_id, Direction::MutexToActivity);
+                        self.currently_connecting_from = Some(AnyNode::Activity(activity_id));
+                    }
+                    Some(AnyNode::Activity(activity_id)) => {
+                        let mutex_id = self.add_mutex_node(MutexNode::new(pos));
+                        self.connect(activity_id, mutex_id, Direction::ActivityToMutex);
+                        self.currently_connecting_from = Some(AnyNode::Mutex(mutex_id));
+                    }
+                    None => {
+                        self.add_activity_node(ActivityNode::new(pos));
+                    }
+                }
+            }
+        }
+
+        // left click empty space (click away)
+        if container_response.clicked() {
+            self.currently_connecting_from = None;
+        }
+
+        // draw connection preview
+        if let Some(pointer_pos) = ui.input(|i| i.pointer.latest_pos()) {
+            match self.currently_connecting_from {
+                Some(AnyNode::Mutex(id)) => {
+                    if let Some(node) = self.mutex_nodes.get(&id) {
+                        connection::Connection::draw_arrow(
+                            ui,
+                            node.pos,
+                            container_transform.inverse() * pointer_pos,
+                            connection::Color::Default,
+                            connection::Color::Default,
+                            0.,
+                        );
+                    }
+                }
+                Some(AnyNode::Activity(id)) => {
+                    if let Some(node) = self.activity_nodes.get(&id) {
+                        connection::Connection::draw_arrow(
+                            ui,
+                            node.pos,
+                            container_transform.inverse() * pointer_pos,
+                            connection::Color::Default,
+                            connection::Color::Default,
+                            0.,
+                        );
+                    }
+                }
+                None => (),
+            };
+        }
+    }
+
+    pub fn draw(&mut self, ui: &mut egui::Ui) {
         ui.style_mut().spacing.interact_size = egui::Vec2::ZERO;
         ui.style_mut().spacing.button_padding = egui::Vec2::ZERO;
         ui.style_mut().interaction.multi_widget_text_select = false;
-
-        // interact
-        for (_, node) in &mut self.activity_nodes {
-            node.interact(ui);
-        }
-
-        for (_, node) in &mut self.mutex_nodes {
-            node.interact(ui);
-        }
 
         // draw
         let tick_progress = self.tick_progress;

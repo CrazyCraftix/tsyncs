@@ -22,7 +22,7 @@ impl ActivityNode {
         }
     }
 
-    pub fn interact(&mut self, ui: &egui::Ui) {
+    pub fn interact(&mut self, ui: &egui::Ui) -> Option<egui::Response> {
         if let (
             Some(Some(response_outer)),
             Some(Some(response_circle)),
@@ -41,17 +41,20 @@ impl ActivityNode {
             self.response_duration_id
                 .map(|response_duration_id| ui.ctx().read_response(response_duration_id)),
         ) {
+            let response_union = response_outer
+                | response_circle
+                | response_task_name.clone()
+                | response_activity_name.clone();
             if !ui.ctx().input(|i| i.pointer.secondary_down()) {
-                let response_union = response_outer
-                    | response_circle
-                    | response_task_name.clone()
-                    | response_activity_name.clone();
                 if response_union.dragged() || response_union.drag_stopped() {
                     self.pos += response_union.drag_delta();
                     response_task_name.surrender_focus();
                     response_activity_name.surrender_focus();
                 }
             }
+            Some(response_union)
+        } else {
+            None
         }
     }
 
