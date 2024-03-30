@@ -22,37 +22,37 @@ impl Default for App {
     fn default() -> Self {
         let mut a2 = graph::ActivityNode::new(egui::pos2(300., 100.));
         a2.task_name = "Task 2".into();
-        a2.activity_name = "Activiy 2".into();
+        a2.activity_name = "Activity 2".into();
         a2.duration = 3;
 
         let mut a1 = graph::ActivityNode::new(egui::pos2(150., 250.));
         a1.task_name = "Task 1".into();
-        a1.activity_name = "Activiy 1".into();
+        a1.activity_name = "Activity 1".into();
         a1.duration = 3;
 
         let mut a5b = graph::ActivityNode::new(egui::pos2(150., 400.));
         a5b.task_name = "Task 5".into();
-        a5b.activity_name = "Activiy 5b".into();
+        a5b.activity_name = "Activity 5b".into();
         a5b.duration = 1;
 
         let mut a5a = graph::ActivityNode::new(egui::pos2(450., 400.));
         a5a.task_name = "Task 5".into();
-        a5a.activity_name = "Activiy 5a".into();
+        a5a.activity_name = "Activity 5a".into();
         a5a.duration = 2;
 
         let mut a3 = graph::ActivityNode::new(egui::pos2(450., 250.));
         a3.task_name = "Task 3".into();
-        a3.activity_name = "Activiy 3".into();
+        a3.activity_name = "Activity 3".into();
         a3.duration = 2;
 
         let mut a4 = graph::ActivityNode::new(egui::pos2(600., 100.));
         a4.task_name = "Task 4".into();
-        a4.activity_name = "Activiy 4".into();
+        a4.activity_name = "Activity 4".into();
         a4.duration = 3;
 
         let mut a6 = graph::ActivityNode::new(egui::pos2(750., 250.));
         a6.task_name = "Task 6".into();
-        a6.activity_name = "Activiy 6".into();
+        a6.activity_name = "Activity 6".into();
         a6.duration = 3;
 
         let m24 = graph::MutexNode::new((a2.pos + a4.pos.to_vec2()) / 2.);
@@ -71,13 +71,13 @@ impl Default for App {
         let m5a5b = graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. - egui::vec2(0., 20.));
 
         let mut graph = Graph::default();
-        let a2 = graph.add_activiy_node(a2);
-        let a1 = graph.add_activiy_node(a1);
-        let a5b = graph.add_activiy_node(a5b);
-        let a5a = graph.add_activiy_node(a5a);
-        let a3 = graph.add_activiy_node(a3);
-        let a4 = graph.add_activiy_node(a4);
-        let a6 = graph.add_activiy_node(a6);
+        let a2 = graph.add_activity_node(a2);
+        let a1 = graph.add_activity_node(a1);
+        let a5b = graph.add_activity_node(a5b);
+        let a5a = graph.add_activity_node(a5a);
+        let a3 = graph.add_activity_node(a3);
+        let a4 = graph.add_activity_node(a4);
+        let a6 = graph.add_activity_node(a6);
 
         let m24 = graph.add_mutex_node(m24);
         let m12 = graph.add_mutex_node(m12);

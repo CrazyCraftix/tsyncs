@@ -16,7 +16,7 @@ impl MutexNode {
         }
     }
 
-    pub fn interact(&mut self, ui: &egui::Ui) {
+    pub fn interact(&mut self, ui: &egui::Ui) -> Option<egui::Response> {
         if let (Some(Some(response_outer)), Some(Some(response_value))) = (
             self.response_outer_id
                 .map(|response_outer_id| ui.ctx().read_response(response_outer_id)),
@@ -29,6 +29,10 @@ impl MutexNode {
                     response_value.surrender_focus();
                 }
             }
+
+            Some(response_outer | response_value)
+        } else {
+            None
         }
     }
 
