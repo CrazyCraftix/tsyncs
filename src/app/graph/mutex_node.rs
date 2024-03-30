@@ -37,7 +37,7 @@ impl MutexNode {
         }
     }
 
-    pub fn draw(&mut self, ui: &mut egui::Ui) {
+    pub fn draw(&mut self, ui: &mut egui::Ui, container_transform: egui::emath::TSTransform) {
         let style = ui.ctx().style().visuals.widgets.inactive;
 
         let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
@@ -59,7 +59,7 @@ impl MutexNode {
             egui::Rect::from_center_size(self.pos, egui::Vec2::splat(15.)),
             egui::DragValue::new(&mut self.value)
                 .update_while_editing(false)
-                .speed(0.05),
+                .speed(container_transform.scaling * 0.05),
         );
         self.response_value_id = Some(response_value.id);
     }

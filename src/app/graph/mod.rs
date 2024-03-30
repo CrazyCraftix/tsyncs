@@ -658,7 +658,7 @@ impl Graph {
         }
     }
 
-    pub fn draw(&mut self, ui: &mut egui::Ui) {
+    pub fn draw(&mut self, ui: &mut egui::Ui, container_transform: egui::emath::TSTransform) {
         ui.style_mut().spacing.interact_size = egui::Vec2::ZERO;
         ui.style_mut().spacing.button_padding = egui::Vec2::ZERO;
         ui.style_mut().interaction.multi_widget_text_select = false;
@@ -666,9 +666,9 @@ impl Graph {
         // draw
         let tick_progress = self.tick_progress;
         self.do_per_connection(|c, a, m| c.draw(ui, a, m, tick_progress));
-        self.mutex_nodes.iter_mut().for_each(|n| n.1.draw(ui));
+        self.mutex_nodes.iter_mut().for_each(|n| n.1.draw(ui, container_transform));
         self.activity_nodes
             .iter_mut()
-            .for_each(|(_, activity_node)| activity_node.draw(ui));
+            .for_each(|(_, activity_node)| activity_node.draw(ui, container_transform));
     }
 }
