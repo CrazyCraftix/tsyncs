@@ -451,25 +451,29 @@ impl Graph {
                     return;
                 }
 
-                if let Some(activity_connections) = self.connections.get(&activity_id) {
-                    // check if prerequisites are met
-                    let prerequisites_missing = activity_connections
-                        .iter()
-                        .filter(|(_, connection)| {
-                            connection.direction != Direction::ActivityToMutex
-                        })
-                        .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
-                        .find(|mutex_node| mutex_node.value <= 0)
-                        .is_some();
+                let activity_connections = self.connections.get(&activity_id);
 
-                    if prerequisites_missing {
-                        return;
-                    }
+                // check if prerequisites are met
+                let prerequisites_missing =
+                    activity_connections.map_or(false, |activity_connections| {
+                        activity_connections
+                            .iter()
+                            .filter(|(_, connection)| {
+                                connection.direction != Direction::ActivityToMutex
+                            })
+                            .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
+                            .find(|mutex_node| mutex_node.value <= 0)
+                            .is_some()
+                    });
+                if prerequisites_missing {
+                    return;
+                }
 
-                    // start the node
-                    activity_node.remaining_duration = activity_node.duration;
+                // start the node
+                activity_node.remaining_duration = activity_node.duration;
 
-                    // decrement prerequisites
+                // decrement prerequisites
+                activity_connections.map(|activity_connections| {
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
@@ -478,8 +482,8 @@ impl Graph {
                                     .get_mut(mutex_id)
                                     .map(|mutex_node| mutex_node.value -= 1);
                             }
-                        })
-                }
+                        });
+                });
             });
 
         // return to predictable order for drawing the ui
