@@ -7,9 +7,13 @@ pub struct ActivityNode {
     pub duration: u32,
     pub remaining_duration: u32,
 
+    #[serde(skip)]
     response_outer_id: Option<egui::Id>,
+    #[serde(skip)]
     response_circle_id: Option<egui::Id>,
+    #[serde(skip)]
     response_task_name_id: Option<egui::Id>,
+    #[serde(skip)]
     response_activity_name_id: Option<egui::Id>,
 }
 

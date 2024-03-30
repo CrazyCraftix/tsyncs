@@ -3,8 +3,9 @@ pub struct MutexNode {
     pub pos: egui::Pos2,
     pub value: u32,
 
-    previous_value: u32,
+    #[serde(skip)]
     response_outer_id: Option<egui::Id>,
+    #[serde(skip)]
     response_value_id: Option<egui::Id>,
 }
 
