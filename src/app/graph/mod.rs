@@ -2,8 +2,6 @@ mod activity_node;
 pub mod connection;
 mod mutex_node;
 
-use std::io::{self, Lines};
-
 pub use activity_node::ActivityNode;
 pub use mutex_node::MutexNode;
 
@@ -235,6 +233,14 @@ impl Graph {
 
         return csv;
     }
+
+    pub fn to_json(&self) -> Result<String, String> {
+        serde_json::to_string(self).map_err(|_| "Error while serializing to JSON".into())
+    }
+
+    pub fn from_json(text: &String) -> Result<Self, Box<String>> {
+        serde_json::from_str(text).map_err(|e| e.to_string().into())
+    }
 }
 
 // structure
@@ -340,13 +346,6 @@ impl Graph {
             -1 => 1,
             _ => -1,
         }
-    }
-
-    fn single_tick(&mut self) {
-        self.tick_a();
-        self.do_per_connection(|c, a, m| c.tick(a, m));
-        self.tick_b();
-        self.do_per_connection(|c, a, m| c.tick(a, m));
     }
 
     fn tick_a(&mut self) {

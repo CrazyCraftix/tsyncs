@@ -24,7 +24,6 @@ enum ActivityToMutexState {
 enum Color {
     Default,
     Active,
-    Blocking,
 }
 impl Into<Vec<egui::Color32>> for Color {
     fn into(self) -> Vec<egui::Color32> {
@@ -50,12 +49,6 @@ impl Into<Vec<egui::Color32>> for Color {
                 egui::Color32::GREEN,
                 egui::Color32::GREEN,
                 egui::Color32::GREEN,
-            ],
-            Color::Blocking => vec![
-                egui::Color32::LIGHT_GRAY,
-                egui::Color32::DARK_RED,
-                egui::Color32::LIGHT_GRAY,
-                egui::Color32::RED,
             ],
         }
     }

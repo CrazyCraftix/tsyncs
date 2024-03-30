@@ -1,8 +1,3 @@
-use std::{
-    fmt::format,
-    io::{BufRead as _, Write as _},
-};
-
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use self::graph::Graph;
@@ -22,6 +17,15 @@ pub struct App {
     text_channel: (Sender<String>, Receiver<String>),
     #[serde(skip)]
     file_buffer: String,
+    #[serde(skip)]
+    import_state: ImportState,
+}
+
+#[derive(PartialEq)]
+enum ImportState {
+    Free,
+    CSV,
+    JSON,
 }
 
 impl Default for App {
@@ -131,6 +135,7 @@ impl Default for App {
             graph,
             text_channel: channel(),
             file_buffer: Default::default(),
+            import_state: ImportState::Free,
         }
     }
 }
@@ -160,18 +165,33 @@ impl eframe::App for App {
             self.file_buffer = text;
         }
 
-        if !self.file_buffer.is_empty() {
-            match Graph::from_csv(&self.file_buffer) {
-                Ok(graph) => {
-                    self.graph = graph;
-                }
-                Err(e) => {
-                    rfd::MessageDialog::new()
-                        .set_title("Error")
-                        .set_description(&format!("Failed to import graph: {}", e))
-                        .set_level(rfd::MessageLevel::Error)
-                        .show();
-                }
+        if !self.file_buffer.is_empty() && self.import_state != ImportState::Free {
+            match self.import_state {
+                ImportState::CSV => match Graph::from_csv(&self.file_buffer) {
+                    Ok(graph) => {
+                        self.graph = graph;
+                    }
+                    Err(e) => {
+                        rfd::MessageDialog::new()
+                            .set_title("Parser Error")
+                            .set_description(&format!("Failed to import graph: {}", e))
+                            .set_level(rfd::MessageLevel::Error)
+                            .show();
+                    }
+                },
+                ImportState::JSON => match Graph::from_json(&self.file_buffer) {
+                    Ok(graph) => {
+                        self.graph = graph;
+                    }
+                    Err(e) => {
+                        rfd::MessageDialog::new()
+                            .set_title("Parser Error")
+                            .set_description(&format!("Failed to import graph: {}", e))
+                            .set_level(rfd::MessageLevel::Error)
+                            .show();
+                    }
+                },
+                _ => {}
             }
             self.file_buffer.clear();
         }
@@ -183,7 +203,10 @@ impl eframe::App for App {
                     egui::menu::menu_button(ui, "File", |ui| {
                         if ui.button("⬅ Import Graph").clicked() {
                             let sender = self.text_channel.0.clone();
-                            let task = rfd::AsyncFileDialog::new().add_filter("Comma Seperated Values", &["csv"]).add_filter("All Files", &["*"]).pick_file();
+                            let task = rfd::AsyncFileDialog::new()
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All Files", &["*"])
+                                .pick_file();
                             execute(async move {
                                 let file = task.await;
                                 if let Some(file) = file {
@@ -191,10 +214,14 @@ impl eframe::App for App {
                                     let _ = sender.send(String::from_utf8_lossy(&text).to_string());
                                 }
                             });
+                            self.import_state = ImportState::CSV;
                         }
 
                         if ui.button("➡ Export Graph").clicked() {
-                            let task = rfd::AsyncFileDialog::new().add_filter("Comma Seperated Values", &["csv"]).add_filter("All Files", &["*"]).save_file();
+                            let task = rfd::AsyncFileDialog::new()
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All Files", &["*"])
+                                .save_file();
                             let contents = self.graph.to_csv();
                             execute(async move {
                                 let file = task.await;
@@ -202,6 +229,47 @@ impl eframe::App for App {
                                     _ = file.write(contents.as_bytes()).await;
                                 }
                             });
+                        }
+
+                        if ui.button("💾 Save Graph").clicked() {
+                            let task = rfd::AsyncFileDialog::new()
+                                .add_filter("JSON", &["json"])
+                                .add_filter("All Files", &["*"])
+                                .save_file();
+                            match self.graph.to_json() {
+                                Ok(contents) => {
+                                    let contents = contents.to_string();
+                                    execute(async move {
+                                        let file = task.await;
+                                        if let Some(file) = file {
+                                            _ = file.write(contents.as_bytes()).await;
+                                        }
+                                    });
+                                }
+                                Err(e) => {
+                                    rfd::MessageDialog::new()
+                                        .set_title("Parser Error")
+                                        .set_description(&format!("Failed to export graph: {}", e))
+                                        .set_level(rfd::MessageLevel::Error)
+                                        .show();
+                                }
+                            };
+                        }
+
+                        if ui.button("📂 Load Graph").clicked() {
+                            let sender = self.text_channel.0.clone();
+                            let task = rfd::AsyncFileDialog::new()
+                                .add_filter("JSON", &["json"])
+                                .add_filter("All Files", &["*"])
+                                .pick_file();
+                            execute(async move {
+                                let file = task.await;
+                                if let Some(file) = file {
+                                    let text = file.read().await;
+                                    let _ = sender.send(String::from_utf8_lossy(&text).to_string());
+                                }
+                            });
+                            self.import_state = ImportState::JSON;
                         }
                     });
                 });

@@ -11,7 +11,6 @@ pub struct ActivityNode {
     response_circle_id: Option<egui::Id>,
     response_task_name_id: Option<egui::Id>,
     response_activity_name_id: Option<egui::Id>,
-    response_duration_id: Option<egui::Id>,
 }
 
 impl ActivityNode {
@@ -28,7 +27,6 @@ impl ActivityNode {
             Some(Some(response_circle)),
             Some(Some(response_task_name)),
             Some(Some(response_activity_name)),
-            Some(Some(response_duration)),
         ) = (
             self.response_outer_id
                 .map(|response_outer_id| ui.ctx().read_response(response_outer_id)),
@@ -38,8 +36,6 @@ impl ActivityNode {
                 .map(|response_task_name_id| ui.ctx().read_response(response_task_name_id)),
             self.response_activity_name_id
                 .map(|response_activity_name_id| ui.ctx().read_response(response_activity_name_id)),
-            self.response_duration_id
-                .map(|response_duration_id| ui.ctx().read_response(response_duration_id)),
         ) {
             if !ui.ctx().input(|i| i.pointer.secondary_down()) {
                 let response_union = response_outer
@@ -140,14 +136,13 @@ impl ActivityNode {
         ui.painter()
             .circle_stroke(circle_position, circle_radius, style.fg_stroke);
 
-        let response_duration = ui.put(
+        ui.put(
             egui::Rect::from_center_size(circle_position, egui::Vec2::splat(duration_height)),
             egui::DragValue::new(&mut self.duration)
                 .update_while_editing(false)
                 .speed(0.05)
                 .clamp_range(1..=std::u32::MAX),
         );
-        self.response_duration_id = Some(response_duration.id);
 
         ui.put(
             egui::Rect::from_center_size(
