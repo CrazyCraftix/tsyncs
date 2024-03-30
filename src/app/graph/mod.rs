@@ -3,7 +3,10 @@ pub mod connection;
 mod mutex_node;
 
 pub use activity_node::ActivityNode;
+use egui::Pos2;
 pub use mutex_node::MutexNode;
+use rand::{thread_rng, Rng};
+use random_word::Lang;
 
 use self::connection::Direction;
 
@@ -513,6 +516,15 @@ impl Graph {
 
 // ux
 impl Graph {
+    fn create_new_activity(pos: Pos2) -> ActivityNode {
+        let mut activity_node = ActivityNode::new(pos);
+        activity_node.activity_name = "Activity".to_string();
+        activity_node.task_name = random_word::gen_len(thread_rng().gen_range(4..=8), Lang::En).unwrap_or_else(|| "Task").to_string();
+        activity_node.duration = 1;
+        activity_node.priority = 0;
+        activity_node
+    }
+
     pub fn interact(
         &mut self,
         ui: &mut egui::Ui,
@@ -581,7 +593,7 @@ impl Graph {
                     self.mutex_nodes.get(&to_mutex_id),
                 ) {
                     let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
-                    let activity_id = self.add_activity_node(ActivityNode::new(activity_pos));
+                    let activity_id = self.add_activity_node(Graph::create_new_activity(activity_pos));
                     self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
                     self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
                 }
@@ -601,7 +613,7 @@ impl Graph {
                 let pos = container_transform.inverse() * pos;
                 match self.currently_connecting_from {
                     Some(AnyNode::Mutex(mutex_id)) => {
-                        let activity_id = self.add_activity_node(ActivityNode::new(pos));
+                        let activity_id = self.add_activity_node(Graph::create_new_activity(pos));
                         self.connect(activity_id, mutex_id, Direction::MutexToActivity);
                         self.currently_connecting_from = Some(AnyNode::Activity(activity_id));
                     }
@@ -611,7 +623,7 @@ impl Graph {
                         self.currently_connecting_from = Some(AnyNode::Mutex(mutex_id));
                     }
                     None => {
-                        self.add_activity_node(ActivityNode::new(pos));
+                        self.add_activity_node(Graph::create_new_activity(pos));
                     }
                 }
             }

@@ -284,12 +284,14 @@ impl eframe::App for App {
                 ui.horizontal_centered(|ui| {
                     egui::warn_if_debug_build(ui);
                     ui.style_mut().spacing.slider_width = 175.;
-                    ui.add(
+                    if ui.add(
                         egui::widgets::Slider::new(&mut self.graph.ticks_per_second, 0.1..=50.0)
                             .text("ticks per second")
                             .logarithmic(true)
                             .max_decimals(2),
-                    );
+                    ).double_clicked() {
+                        self.graph.ticks_per_second = 1.0;
+                    };
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
