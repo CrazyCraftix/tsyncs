@@ -221,20 +221,23 @@ impl eframe::App for App {
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All Files", &["*"])
+                                .set_file_name("graph.csv")
                                 .save_file();
                             let contents = self.graph.to_csv();
                             execute(async move {
                                 let file = task.await;
                                 if let Some(file) = file {
+                                    println!("{}", file.file_name());
                                     _ = file.write(contents.as_bytes()).await;
                                 }
                             });
                         }
-
+                        ui.separator();
                         if ui.button("💾 Save Graph").clicked() {
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("JSON", &["json"])
                                 .add_filter("All Files", &["*"])
+                                .set_file_name("graph.json")
                                 .save_file();
                             match self.graph.to_json() {
                                 Ok(contents) => {
