@@ -1,10 +1,21 @@
+use std::{
+    fmt::format,
+    io::{BufRead as _, Write as _},
+};
+
+use egui::Label;
+
+use self::graph::Graph;
+
 mod graph;
 mod graphics;
+
+//use native_dialog::{FileDialog, MessageDialog, MessageType};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
-    graph: graph::Graph,
+    graph: Graph,
 }
 
 impl Default for App {
@@ -59,7 +70,7 @@ impl Default for App {
         m5b5a.value = 1;
         let m5a5b = graph::MutexNode::new((a5b.pos + a5a.pos.to_vec2()) / 2. - egui::vec2(0., 20.));
 
-        let mut graph = graph::Graph::default();
+        let mut graph = Graph::default();
         let a2 = graph.add_activiy_node(a2);
         let a1 = graph.add_activiy_node(a1);
         let a5b = graph.add_activiy_node(a5b);
@@ -140,6 +151,97 @@ impl eframe::App for App {
             .min_height(0.)
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
+                    egui::menu::menu_button(ui, "File", |ui| {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if ui.button("Open Graph...").clicked() {
+                            let path_result = native_dialog::FileDialog::new()
+                                .set_location(&dirs::home_dir().unwrap())
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All files", &["*"])
+                                .show_open_single_file();
+
+                            match path_result {
+                                Ok(Some(path_buffer)) => {
+                                    let filename = path_buffer.to_str().unwrap();
+                                    let lines = std::io::BufReader::new(
+                                        std::fs::File::open(filename).unwrap(),
+                                    )
+                                    .lines();
+
+                                    match Graph::from_csv(lines) {
+                                        Ok(graph) => {
+                                            self.graph = graph;
+                                        }
+                                        Err(e) => {
+                                            native_dialog::MessageDialog::new()
+                                                .set_type(native_dialog::MessageType::Error)
+                                                .set_title("Parser Error")
+                                                .set_text(&format!("{}", e))
+                                                .show_alert()
+                                                .unwrap();
+                                        }
+                                    }
+                                }
+                                Ok(None) => {}
+                                Err(e) => {
+                                    native_dialog::MessageDialog::new()
+                                        .set_type(native_dialog::MessageType::Error)
+                                        .set_title("Error")
+                                        .set_text(&format!("Error: {}", e))
+                                        .show_alert()
+                                        .unwrap();
+                                }
+                            }
+                        }
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if ui.button("Save Graph As...").clicked() {
+                            let path_result = native_dialog::FileDialog::new()
+                                .set_location(&dirs::home_dir().unwrap())
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All files", &["*"])
+                                .show_save_single_file();
+
+                            match path_result {
+                                Ok(Some(path_buffer)) => {
+                                    let filename = path_buffer.to_str().unwrap();
+                                    let csv = self.graph.to_csv();
+                                    match std::fs::File::create(filename) {
+                                        Ok(mut file) => {
+                                            file.write(csv.as_bytes()).unwrap();
+                                        }
+                                        Err(e) => {
+                                            native_dialog::MessageDialog::new()
+                                                .set_type(native_dialog::MessageType::Error)
+                                                .set_title("Error")
+                                                .set_text(&format!("{}", e))
+                                                .show_alert()
+                                                .unwrap();
+                                        }
+                                    }
+                                }
+                                Ok(None) => {}
+                                Err(e) => {
+                                    native_dialog::MessageDialog::new()
+                                        .set_type(native_dialog::MessageType::Error)
+                                        .set_title("Error")
+                                        .set_text(&format!("Error: {}", e))
+                                        .show_alert()
+                                        .unwrap();
+                                }
+                            }
+                        }
+
+                        #[cfg(target_arch = "wasm32")]
+                        if ui.button("Download Graph").clicked() {
+                            // download file
+                        }
+
+                        #[cfg(target_arch = "wasm32")]
+                        if ui.button("Upload Graph").clicked() {
+                            // upload file
+                        }
+                    });
                     egui::widgets::global_dark_light_mode_buttons(ui);
                 });
             });
@@ -147,7 +249,41 @@ impl eframe::App for App {
         egui::TopBottomPanel::bottom("bottom_panel")
             .min_height(0.)
             .show(ctx, |ui| {
-                egui::warn_if_debug_build(ui);
+                egui::menu::bar(ui, |ui| {
+                    egui::warn_if_debug_build(ui);
+                    ui.style_mut().spacing.slider_width = 250.;
+                    ui.add(
+                        egui::widgets::Slider::new(&mut self.graph.ticks_per_second, 0.1..=50.0)
+                            .text("Animation Speed")
+                            .logarithmic(true)
+                            .max_decimals(2),
+                    );
+                    if ui
+                        .button(format!(
+                            "{}",
+                            match self.graph.is_running() {
+                                true => "Pause",
+                                false => "Play",
+                            }
+                        ))
+                        .clicked()
+                    {
+                        self.graph.toggle_play_pause();
+                    };
+                    if !self.graph.is_running() {
+                        let range = match self.graph.remaining_ticks_to_run {
+                            0 => 0..=1000,
+                            _ => 1..=1000,
+                        };
+                        ui.add(egui::DragValue::new(&mut self.graph.remaining_ticks_to_run)
+                            .speed(1.)
+                            .clamp_range(range).max_decimals(0));
+                        ui.label("remaining ticks");
+                        if ui.button("Single Step").clicked() {
+                            self.graph.queue_tick();
+                        }
+                    }
+                });
             });
 
         // main panel
