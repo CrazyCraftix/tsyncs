@@ -225,7 +225,7 @@ impl Graph {
 
         let mut csv = String::new();
         //add header
-        csv.push_str("Type,ID,Parameters\n");
+        csv.push_str("Type;Position X;Position Y;ID;Parameters\n");
 
         // add tasks
         for (activity_id, activity_node) in &self.activity_nodes {

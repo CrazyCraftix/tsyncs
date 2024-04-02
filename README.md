@@ -1,6 +1,6 @@
 <img src="assets/Logo.svg" alt="drawing" width="400"/>
 
-A simple viewer and simulator for task charts. 
+A simple viewer and simulator for task charts.
 
 ## Tutorial
 tsyncs offers a convinient way to load and visualize task charts. To load a task select `File -> Import Graph...` and select a CSV file containing the task chart. You can also export the current graph as CSV file by selecting `File -> Export Graph...` The task chart will be displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
@@ -23,32 +23,32 @@ There are two types for entries in the CSV file `Task` and `Mutex`.
 
 Task entries take the following format:
 ```csv
-Task; ID; Task-Name; Activity-Name; Duration, Priority, [Comma seperated list of Connected Mutex IDs]
+Task; Position X; Position Y; ID; Task-Name; Activity-Name; Duration, Priority, [Comma seperated list of Connected Mutex IDs]
 ```
 
 Mutex entries take the following format:
 ```csv
-Mutex; ID; Value; [Comma seperated list of Connected Task IDs]
+Mutex; Position X; Position Y; ID; Value; [Comma seperated list of Connected Task IDs]
 ```
 
 #### Example CSV file
 ```csv
-Type,ID,Parameters
-Task;0;Task 2;Activiy 2;3;0;0;2
-Task;1;Task 1;Activiy 1;3;0;4;1
-Task;2;Task 5;Activiy 5b;1;0;8;7
-Task;3;Task 5;Activiy 5a;2;0;9
-Task;4;Task 3;Activiy 3;2;2;5;2
-Task;5;Task 4;Activiy 4;3;0;3;2
-Task;6;Task 6;Activiy 6;3;0;6
-Mutex;1;0;0
-Mutex;3;0;6
-Mutex;6;0;3
-Mutex;4;0;4
-Mutex;2;0;4;5;0
-Mutex;9;0;2
-Mutex;8;0;3
-Mutex;7;0;1
-Mutex;0;0;5
-Mutex;5;0;6
+Type;Position X;Position Y;ID;Parameters
+Task;300;100;0;Task 2;Activiy 2;3;0;0;2
+Task;150;250;1;Task 1;Activiy 1;3;0;1;4
+Task;150;400;2;Task 5;Activiy 5b;1;0;8;7
+Task;450;400;3;Task 5;Activiy 5a;2;0;9
+Task;450;250;4;Task 3;Activiy 3;2;0;2;5
+Task;600;100;5;Task 4;Activiy 4;3;0;2;3
+Task;750;250;6;Task 6;Activiy 6;3;0;6
+Mutex;600;250;5;0;6
+Mutex;300;420;8;1;3
+Mutex;600;325;6;0;3
+Mutex;450;100;0;0;5
+Mutex;300;250;4;1;4
+Mutex;300;380;9;0;2
+Mutex;450;150;2;1;5;0;4
+Mutex;225;175;1;1;0
+Mutex;675;175;3;0;6
+Mutex;150;325;7;0;1
 ```
