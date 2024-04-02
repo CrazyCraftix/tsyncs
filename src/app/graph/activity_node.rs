@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct ActivityNode {
     pub pos: egui::Pos2,
@@ -118,6 +120,11 @@ impl ActivityNode {
                     / (self.duration as f32 - 0.5))
                     * outer_rect.width(),
             );
+            let height = outer_rect.height() - outer_rounding
+                + ((progress_rect.width() / outer_rounding / 2.).min(1.) * PI / 2.).sin()
+                    * outer_rounding;
+            progress_rect.set_top(outer_rect.top() + (outer_rect.height() - height) / 2.);
+            progress_rect.set_bottom(outer_rect.bottom() - (outer_rect.height() - height) / 2.);
             progress_rect.set_left(outer_rect.left());
             ui.painter().rect_filled(
                 progress_rect,
