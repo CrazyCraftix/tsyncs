@@ -340,7 +340,7 @@ impl eframe::App for App {
                         transform = container_transform;
                         self.graph.tick(ui);
                         self.graph.interact(ui, container_transform, container_response);
-                        self.graph.draw(ui);
+                        self.graph.draw(ui, container_transform);
                     });
             });
         });

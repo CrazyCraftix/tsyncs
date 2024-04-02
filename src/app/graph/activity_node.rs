@@ -7,9 +7,13 @@ pub struct ActivityNode {
     pub duration: u32,
     pub remaining_duration: u32,
 
+    #[serde(skip)]
     response_outer_id: Option<egui::Id>,
+    #[serde(skip)]
     response_circle_id: Option<egui::Id>,
+    #[serde(skip)]
     response_task_name_id: Option<egui::Id>,
+    #[serde(skip)]
     response_activity_name_id: Option<egui::Id>,
 }
 
@@ -54,7 +58,7 @@ impl ActivityNode {
         }
     }
 
-    pub fn draw(&mut self, ui: &mut egui::Ui) {
+    pub fn draw(&mut self, ui: &mut egui::Ui, container_transform: egui::emath::TSTransform) {
         let style = ui.style().visuals.widgets.inactive;
 
         let outline_stoke = match self.remaining_duration {
@@ -143,7 +147,7 @@ impl ActivityNode {
             egui::Rect::from_center_size(circle_position, egui::Vec2::splat(duration_height)),
             egui::DragValue::new(&mut self.duration)
                 .update_while_editing(false)
-                .speed(0.05)
+                .speed(container_transform.scaling * 0.05)
                 .clamp_range(1..=std::u32::MAX),
         );
 
@@ -154,7 +158,7 @@ impl ActivityNode {
             ),
             egui::DragValue::new(&mut self.remaining_duration)
                 .update_while_editing(false)
-                .speed(0.05),
+                .speed(container_transform.scaling * 0.05),
         );
         ui.put(
             egui::Rect::from_center_size(
@@ -163,7 +167,7 @@ impl ActivityNode {
             ),
             egui::DragValue::new(&mut self.priority)
                 .update_while_editing(false)
-                .speed(0.05),
+                .speed(container_transform.scaling * 0.05),
         );
     }
 }
