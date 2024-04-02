@@ -101,24 +101,30 @@ impl Graph {
 
             // match first value to determine type of line
             match values[0].to_lowercase().as_str() {
-                "task" if values.len() >= 6 => {
+                "task" if values.len() >= 8 => {
+                    let mut activity_node = ActivityNode::new(egui::Pos2 {
+                        x: values[1].parse::<f32>().map_err(|_| {
+                            format!("Error while parsing Position X in line: {}", line_number)
+                        })?,
+                        y: values[2].parse::<f32>().map_err(|_| {
+                            format!("Error while parsing Position Y in line: {}", line_number)
+                        })?,
+                    });
                     let activity_id =
-                        ActivityNodeId(values[1].parse::<usize>().map_err(|_| {
+                        ActivityNodeId(values[3].parse::<usize>().map_err(|_| {
                             format!("Error while parsing ID in line: {}", line_number)
                         })?);
-
-                    let mut activity_node = ActivityNode::new(egui::Pos2 { x: 0., y: 0. });
-                    activity_node.task_name = values[2].to_string();
-                    activity_node.activity_name = values[3].to_string();
-                    activity_node.duration = values[4].parse::<u32>().map_err(|_| {
+                    activity_node.task_name = values[4].to_string();
+                    activity_node.activity_name = values[5].to_string();
+                    activity_node.duration = values[6].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Duration in line: {}", line_number)
                     })?;
-                    activity_node.priority = values[5].parse::<u32>().map_err(|_| {
+                    activity_node.priority = values[7].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Priority in line: {}", line_number)
                     })?;
                     graph.add_activiy_node_with_id(activity_node, activity_id);
 
-                    values[6..]
+                    values[8..]
                         .iter()
                         .filter(|x| !x.is_empty())
                         .find_map(|x| match x.parse::<usize>() {
@@ -138,19 +144,25 @@ impl Graph {
                         .unwrap_or(Ok(()))?;
                 }
 
-                "mutex" if values.len() >= 3 => {
+                "mutex" if values.len() >= 5 => {
+                    let mut mutex_node = MutexNode::new(egui::Pos2 {
+                        x: values[1].parse::<f32>().map_err(|_| {
+                            format!("Error while parsing Position X in line: {}", line_number)
+                        })?,
+                        y: values[2].parse::<f32>().map_err(|_| {
+                            format!("Error while parsing Position Y in line: {}", line_number)
+                        })?,
+                    });
                     let mutex_id =
-                        MutexNodeId(values[1].parse::<usize>().map_err(|_| {
+                        MutexNodeId(values[3].parse::<usize>().map_err(|_| {
                             format!("Error while parsing ID in line: {}", line_number)
                         })?);
-
-                    let mut mutex_node = MutexNode::new(egui::Pos2 { x: 0., y: 0. });
-                    mutex_node.value = values[2].parse::<u32>().map_err(|_| {
+                    mutex_node.value = values[4].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Value in line: {}", line_number)
                     })?;
                     graph.add_mutex_node_with_id(mutex_node, mutex_id);
 
-                    values[3..]
+                    values[5..]
                         .iter()
                         .filter(|x| !x.is_empty())
                         .find_map(|x| match x.parse::<usize>() {
@@ -218,7 +230,9 @@ impl Graph {
         // add tasks
         for (activity_id, activity_node) in &self.activity_nodes {
             csv.push_str(&format!(
-                "Task{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
+                "Task{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
+                activity_node.pos.x,
+                activity_node.pos.y,
                 activity_id.0,
                 activity_node.task_name,
                 activity_node.activity_name,
@@ -235,7 +249,9 @@ impl Graph {
         // add mutexes
         for (mutex_id, mutex_node) in &self.mutex_nodes {
             csv.push_str(&format!(
-                "Mutex{seperator}{}{seperator}{}{seperator}{}\n",
+                "Mutex{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
+                mutex_node.pos.x,
+                mutex_node.pos.y,
                 mutex_id.0,
                 mutex_node.value,
                 connection_mutex_to_activity
@@ -523,7 +539,9 @@ impl Graph {
     fn create_new_activity(pos: Pos2) -> ActivityNode {
         let mut activity_node = ActivityNode::new(pos);
         activity_node.activity_name = "Activity".to_string();
-        activity_node.task_name = random_word::gen_len(thread_rng().gen_range(4..=8), Lang::En).unwrap_or_else(|| "Task").to_string();
+        activity_node.task_name = random_word::gen_len(thread_rng().gen_range(4..=8), Lang::En)
+            .unwrap_or_else(|| "Task")
+            .to_string();
         activity_node.duration = 1;
         activity_node.priority = 0;
         activity_node
@@ -597,7 +615,8 @@ impl Graph {
                     self.mutex_nodes.get(&to_mutex_id),
                 ) {
                     let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
-                    let activity_id = self.add_activity_node(Graph::create_new_activity(activity_pos));
+                    let activity_id =
+                        self.add_activity_node(Graph::create_new_activity(activity_pos));
                     self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
                     self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
                 }
