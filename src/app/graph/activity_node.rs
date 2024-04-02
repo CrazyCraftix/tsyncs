@@ -58,7 +58,12 @@ impl ActivityNode {
         }
     }
 
-    pub fn draw(&mut self, ui: &mut egui::Ui, container_transform: egui::emath::TSTransform) {
+    pub fn draw(
+        &mut self,
+        ui: &mut egui::Ui,
+        container_transform: egui::emath::TSTransform,
+        tick_progress: f32,
+    ) {
         let style = ui.style().visuals.widgets.inactive;
 
         let outline_stoke = match self.remaining_duration {
@@ -92,6 +97,21 @@ impl ActivityNode {
 
         ui.painter()
             .rect_filled(outer_rect, outer_rounding, style.bg_fill);
+
+        if self.remaining_duration > 0 {
+            let mut progress_rect = outer_rect;
+            progress_rect.set_width(
+                (1. - (self.remaining_duration as f32 - tick_progress)
+                    / (self.duration as f32 - 0.5))
+                    * outer_rect.width(),
+            );
+            progress_rect.set_left(outer_rect.left());
+            ui.painter().rect_filled(
+                progress_rect,
+                outer_rounding,
+                egui::Color32::from_rgba_unmultiplied(0, 255, 0, 5),
+            );
+        }
 
         let response_outer = ui.allocate_rect(outer_rect, egui::Sense::click_and_drag());
         self.response_outer_id = Some(response_outer.id);
