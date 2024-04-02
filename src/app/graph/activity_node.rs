@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 #[derive(Default, serde::Deserialize, serde::Serialize)]
 pub struct ActivityNode {
     pub pos: egui::Pos2,
@@ -64,6 +66,7 @@ impl ActivityNode {
         container_transform: egui::emath::TSTransform,
         tick_progress: f32,
     ) {
+        const MAX_THREE_DIGIT_NUMBER: u32 = 999;
         let style = ui.style().visuals.widgets.inactive;
 
         let outline_stoke = match self.remaining_duration {
@@ -75,10 +78,10 @@ impl ActivityNode {
 
         let task_name_height = 20.;
         let activity_name_height = 18.;
-        let duration_height = 15.;
+        let textinput_height = 15.;
 
-        let task_name_font = egui::FontId::monospace(15.);
-        let activity_name_font = egui::FontId::monospace(12.5);
+        let task_name_font = egui::FontId::proportional(18.);
+        let activity_name_font = egui::FontId::proportional(15.5);
 
         let outer_padding = egui::vec2(6., 4.);
         let outer_size_without_padding =
@@ -86,10 +89,22 @@ impl ActivityNode {
         let outer_size = outer_size_without_padding + 2. * outer_padding;
         let outer_rect = egui::Rect::from_center_size(self.pos, outer_size);
         let outer_rounding = 10.;
-        let circle_position = outer_rect.right_top() + outer_padding * egui::vec2(-1., 0.5);
-        let circle_radius = outer_size.y / 3.;
+        let priority_rect = egui::Rect::from_two_pos(
+            outer_rect.right_bottom(),
+            outer_rect.right_bottom() - egui::vec2(textinput_height * 2., textinput_height * 1.29),
+        );
+
+        let circle_position = egui::pos2(priority_rect.center_top().x, outer_rect.right_top().y);
+        let circle_radius = outer_size.y / 2.5;
         let circle_hitbox =
             egui::Rect::from_center_size(circle_position, egui::Vec2::splat(2. * circle_radius));
+
+        let priority_rounding = egui::Rounding {
+            nw: outer_rounding,
+            ne: 0.,
+            sw: 0.,
+            se: outer_rounding,
+        };
 
         // for debugging
         let frame = false;
@@ -105,6 +120,11 @@ impl ActivityNode {
                     / (self.duration as f32 - 0.5))
                     * outer_rect.width(),
             );
+            let height = outer_rect.height() - outer_rounding
+                + ((progress_rect.width() / outer_rounding / 2.).min(1.) * PI / 2.).sin()
+                    * outer_rounding;
+            progress_rect.set_top(outer_rect.top() + (outer_rect.height() - height) / 2.);
+            progress_rect.set_bottom(outer_rect.bottom() - (outer_rect.height() - height) / 2.);
             progress_rect.set_left(outer_rect.left());
             ui.painter().rect_filled(
                 progress_rect,
@@ -156,6 +176,15 @@ impl ActivityNode {
         );
         self.response_activity_name_id = Some(response_activity_name.id);
 
+        ui.painter().rect_filled(
+            priority_rect,
+            priority_rounding,
+        style.bg_fill  );
+        ui.painter().rect_stroke(
+            priority_rect,
+            priority_rounding,
+            style.fg_stroke,
+        );
         ui.painter()
             .rect_stroke(outer_rect, outer_rounding, outline_stoke);
         ui.painter()
@@ -163,31 +192,50 @@ impl ActivityNode {
         ui.painter()
             .circle_stroke(circle_position, circle_radius, style.fg_stroke);
 
-        ui.put(
-            egui::Rect::from_center_size(circle_position, egui::Vec2::splat(duration_height)),
-            egui::DragValue::new(&mut self.duration)
-                .update_while_editing(false)
-                .speed(container_transform.scaling * 0.05)
-                .clamp_range(1..=std::u32::MAX),
-        );
-
+        // Priority
+        let speed = container_transform.scaling * 0.05;
         ui.put(
             egui::Rect::from_center_size(
-                circle_position + egui::vec2(0., 1.5 * duration_height),
-                egui::Vec2::splat(duration_height),
-            ),
-            egui::DragValue::new(&mut self.remaining_duration)
-                .update_while_editing(false)
-                .speed(container_transform.scaling * 0.05),
-        );
-        ui.put(
-            egui::Rect::from_center_size(
-                circle_position + egui::vec2(0., 3. * duration_height),
-                egui::Vec2::splat(duration_height),
+                priority_rect.center(),
+                egui::Vec2::splat(textinput_height),
             ),
             egui::DragValue::new(&mut self.priority)
                 .update_while_editing(false)
-                .speed(container_transform.scaling * 0.05),
+                .speed(speed)
+                .clamp_range(0..=MAX_THREE_DIGIT_NUMBER),
+        );
+
+        // Line between remaining duration and duration
+        ui.painter().line_segment(
+            [
+                circle_position + egui::vec2(-circle_radius * 0.7, 0.),
+                circle_position + egui::vec2(circle_radius * 0.7, 0.),
+            ],
+            egui::Stroke::new(0.5, egui::Color32::GRAY),
+        );
+
+        // Duration
+        ui.put(
+            egui::Rect::from_center_size(
+                circle_position + egui::vec2(0., 0.53 * textinput_height),
+                egui::Vec2::splat(textinput_height),
+            ),
+            egui::DragValue::new(&mut self.duration)
+                .update_while_editing(false)
+                .speed(speed)
+                .clamp_range(1..=MAX_THREE_DIGIT_NUMBER),
+        );
+
+        // Remaining Duration
+        ui.put(
+            egui::Rect::from_center_size(
+                circle_position + egui::vec2(0., -0.53 * textinput_height),
+                egui::Vec2::splat(textinput_height),
+            ),
+            egui::DragValue::new(&mut self.remaining_duration)
+                .update_while_editing(false)
+                .speed(speed)
+                .clamp_range(0..=MAX_THREE_DIGIT_NUMBER),
         );
     }
 }
