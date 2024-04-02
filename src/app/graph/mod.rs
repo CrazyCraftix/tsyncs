@@ -666,9 +666,13 @@ impl Graph {
         // draw
         let tick_progress = self.tick_progress;
         self.do_per_connection(|c, a, m| c.draw(ui, a, m, tick_progress));
-        self.mutex_nodes.iter_mut().for_each(|n| n.1.draw(ui, container_transform));
+        self.mutex_nodes
+            .iter_mut()
+            .for_each(|n| n.1.draw(ui, container_transform));
         self.activity_nodes
             .iter_mut()
-            .for_each(|(_, activity_node)| activity_node.draw(ui, container_transform));
+            .for_each(|(_, activity_node)| {
+                activity_node.draw(ui, container_transform, tick_progress)
+            });
     }
 }
