@@ -1,5 +1,7 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 
+use egui::{Button, Layout};
+
 use self::graph::Graph;
 use std::future;
 
@@ -12,6 +14,8 @@ mod graphics;
 #[serde(default)]
 pub struct App {
     graph: Graph,
+
+    scaling_in_percent: f32,
 
     #[serde(skip)]
     text_channel: (Sender<String>, Receiver<String>),
@@ -133,6 +137,7 @@ impl Default for App {
 
         Self {
             graph,
+            scaling_in_percent: 100.,
             text_channel: channel(),
             file_buffer: Default::default(),
             import_state: ImportState::Free,
@@ -143,6 +148,7 @@ impl Default for App {
 impl App {
     pub fn new(creation_context: &eframe::CreationContext<'_>) -> Self {
         creation_context.egui_ctx.set_visuals(egui::Visuals::dark());
+        setup_custom_fonts(&creation_context.egui_ctx);
 
         // load previous app state, if it exists
         if let Some(storage) = creation_context.storage {
@@ -152,6 +158,40 @@ impl App {
         // load default app state
         Default::default()
     }
+}
+
+fn setup_custom_fonts(ctx: &egui::Context) {
+    // Start with the default fonts (we will be adding to them rather than replacing them).
+    let mut fonts = egui::FontDefinitions::default();
+
+    // Install my own font (maybe supporting non-latin characters).
+    // .ttf and .otf files supported.
+    fonts.font_data.insert(
+        "sharetech".to_owned(),
+        egui::FontData::from_static(include_bytes!("../../assets/ShareTech.ttf")),
+    );
+
+    fonts.font_data.insert(
+        "sharetechmono".to_owned(),
+        egui::FontData::from_static(include_bytes!("../../assets/ShareTechMono.ttf")),
+    );
+
+    // Put my font first (highest priority) for proportional text:
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "sharetech".to_owned());
+
+    // Put my font as last fallback for monospace:
+    fonts
+        .families
+        .entry(egui::FontFamily::Monospace)
+        .or_default()
+        .push("sharetechmono".to_owned());
+
+    // Tell egui to use these fonts:
+    ctx.set_fonts(fonts);
 }
 
 impl eframe::App for App {
@@ -164,6 +204,8 @@ impl eframe::App for App {
         if let Ok(text) = self.text_channel.1.try_recv() {
             self.file_buffer = text;
         }
+
+        ctx.set_pixels_per_point((self.scaling_in_percent / 100.) * 1.5);
 
         if !self.file_buffer.is_empty() && self.import_state != ImportState::Free {
             match self.import_state {
@@ -275,6 +317,26 @@ impl eframe::App for App {
                             self.import_state = ImportState::JSON;
                         }
                     });
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("+").clicked() {
+                            self.scaling_in_percent += 10.;
+                            if self.scaling_in_percent > 300. {
+                                self.scaling_in_percent = 300.;
+                            }
+                        }
+                        ui.add(
+                            egui::DragValue::new(&mut self.scaling_in_percent)
+                            .clamp_range(50.0..=300.0)
+                            .suffix("%".to_owned())
+                            .update_while_editing(false),
+                        );
+                        if ui.button("-").clicked() {
+                            self.scaling_in_percent -= 10.;
+                            if self.scaling_in_percent < 50. {
+                                self.scaling_in_percent = 50.;
+                            }
+                        }
+                    });
                 });
             });
 
@@ -284,12 +346,18 @@ impl eframe::App for App {
                 ui.horizontal_centered(|ui| {
                     egui::warn_if_debug_build(ui);
                     ui.style_mut().spacing.slider_width = 175.;
-                    if ui.add(
-                        egui::widgets::Slider::new(&mut self.graph.ticks_per_second, 0.1..=50.0)
+                    if ui
+                        .add(
+                            egui::widgets::Slider::new(
+                                &mut self.graph.ticks_per_second,
+                                0.1..=50.0,
+                            )
                             .text("ticks per second")
                             .logarithmic(true)
                             .max_decimals(2),
-                    ).double_clicked() {
+                        )
+                        .double_clicked()
+                    {
                         self.graph.ticks_per_second = 1.0;
                     };
 
@@ -335,13 +403,16 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
                 let mut transform = Default::default();
-                graphics::PanZoomContainer::new()
-                    .show(ui, |ui, container_transform, container_response| {
+                graphics::PanZoomContainer::new().show(
+                    ui,
+                    |ui, container_transform, container_response| {
                         transform = container_transform;
                         self.graph.tick(ui);
-                        self.graph.interact(ui, container_transform, container_response);
+                        self.graph
+                            .interact(ui, container_transform, container_response);
                         self.graph.draw(ui, container_transform);
-                    });
+                    },
+                );
             });
         });
     }
