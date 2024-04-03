@@ -422,13 +422,19 @@ impl eframe::App for App {
                     |ui, container_transform, container_response| {
                         let image = egui::Image::new(egui::include_image!("../../assets/Logo.png"));
                         let image_size = egui::vec2(120., 60.);
-                        image.shrink_to_fit().tint(egui::Color32::DARK_GRAY).paint_at(
-                            ui,
-                            egui::Rect::from_center_size(
-                                Pos2::new(ui.available_width() - image_size.x*0.5, ui.available_height() - image_size.y*0.) - container_transform.translation,
-                                image_size,
-                            ),
-                        );
+                        image
+                            .shrink_to_fit()
+                            .tint(egui::Color32::DARK_GRAY)
+                            .paint_at(
+                                ui,
+                                egui::Rect::from_center_size(
+                                    container_transform.inverse() * Pos2::new(
+                                        ui.available_width() - image_size.x * 0.5,
+                                        ui.available_height() - image_size.y * 0.,
+                                    ),
+                                    image_size / container_transform.scaling,
+                                ),
+                            );
                         transform = container_transform;
                         self.graph.tick(ui);
                         self.graph
