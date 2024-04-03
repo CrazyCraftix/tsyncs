@@ -1,6 +1,6 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-use egui::{Layout, Pos2};
+use egui::{Align, Button, Layout, OpenUrl, Pos2};
 
 use self::graph::Graph;
 use std::future;
@@ -23,6 +23,8 @@ pub struct App {
     file_buffer: String,
     #[serde(skip)]
     import_state: ImportState,
+    #[serde(skip)]
+    show_about_dialog: bool,
 }
 
 #[derive(PartialEq)]
@@ -137,6 +139,7 @@ impl Default for App {
 
         Self {
             graph,
+            show_about_dialog: false,
             scaling_in_percent: 100.,
             text_channel: channel(),
             file_buffer: Default::default(),
@@ -208,6 +211,8 @@ impl eframe::App for App {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        const LOGO_IMAGESORUCE: egui::ImageSource<'static> =
+            egui::include_image!("../../assets/Logo.png");
         if let Ok(text) = self.text_channel.1.try_recv() {
             self.file_buffer = text;
         }
@@ -248,6 +253,10 @@ impl eframe::App for App {
             .show(ctx, |ui| {
                 egui::menu::bar(ui, |ui| {
                     egui::menu::menu_button(ui, "File", |ui| {
+                        if ui.button("📄 New Graph").clicked() {
+                            self.graph = Graph::default();
+                        }
+                        ui.separator();
                         if ui.button("⬅ Import Graph").clicked() {
                             let sender = self.text_channel.0.clone();
                             let task = rfd::AsyncFileDialog::new()
@@ -321,6 +330,10 @@ impl eframe::App for App {
                             });
                             self.import_state = ImportState::JSON;
                         }
+                        ui.separator();
+                        if ui.button("ℹ About").clicked() {
+                            self.show_about_dialog = !self.show_about_dialog;
+                        }
                     });
                     egui::menu::menu_button(ui, "Edit", |ui| {
                         if ui.button("🗑 Delete Mode").clicked() {
@@ -358,15 +371,18 @@ impl eframe::App for App {
                                 .set_zoom_factor(1.5 * self.scaling_in_percent / 100.);
                         }
 
-                        if ui.label(
-                            egui::RichText::new(match self.graph.editing_mode {
-                                graph::EditingMode::None => "",
-                                graph::EditingMode::Delete => {
-                                    "Delete Mode active! Click here to exit."
-                                }
-                            })
-                            .color(egui::Color32::YELLOW),
-                        ).clicked() {
+                        if ui
+                            .label(
+                                egui::RichText::new(match self.graph.editing_mode {
+                                    graph::EditingMode::None => "",
+                                    graph::EditingMode::Delete => {
+                                        "Delete Mode active! Click here to exit."
+                                    }
+                                })
+                                .color(egui::Color32::YELLOW),
+                            )
+                            .clicked()
+                        {
                             self.graph.editing_mode = graph::EditingMode::None;
                         }
                     });
@@ -428,6 +444,56 @@ impl eframe::App for App {
                 });
             });
 
+        if self.show_about_dialog {
+            egui::SidePanel::left("about_panel")
+                .min_width(250.)
+                .max_width(250.)
+                .show(ctx, |ui| {
+                    egui::scroll_area::ScrollArea::vertical().show(ui, |ui| {
+                        ui.add(egui::Image::new(LOGO_IMAGESORUCE).tint(egui::Color32::LIGHT_GRAY));
+                        ui.heading("Task Syncronisiaton Simulator - About");
+                        ui.label("This is a simple simulation of a graph of activities.");
+
+                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
+                            ui.label("Made with ♥ by");
+                            ui.hyperlink_to("Nicolai Bergmann", "https://github.com/CrazyCraftix");
+                            ui.label("and");
+                        });
+                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
+                            ui.hyperlink_to("Mark Orlando Zeller", "https://the-maze.net");
+                            ui.label(".");
+                        });
+
+                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
+                            ui.label("The project was created as part of the course 'Echtzeitsysteme' at the");
+                            ui.hyperlink_to("DHBW Stuttgart", "https://www.dhbw-stuttgart.de/");
+                            ui.label(".");
+                        });
+                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
+                            ui.label("This project is made with");
+                            ui.hyperlink_to("egui", "https://github.com/emilk/egui");
+                            ui.label(".");
+                        });
+                    });
+
+
+                    ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
+                        ui.horizontal(|ui| {
+                            if ui.button("Documentation").clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/CrazyCraftix/tsyncs"));
+                            }
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if ui.button("Try the Web version").clicked() {
+                                ui.ctx().open_url(OpenUrl::new_tab("https://tsyncs.de"));
+                            }
+                            if ui.button("Close").clicked() {
+                                self.show_about_dialog = false;
+                            }
+                        });
+                    });
+                });
+        }
+
         // main panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
@@ -435,7 +501,7 @@ impl eframe::App for App {
                 graphics::PanZoomContainer::new().show(
                     ui,
                     |ui, container_transform, container_response| {
-                        let image = egui::Image::new(egui::include_image!("../../assets/Logo.png"));
+                        let image = egui::Image::new(LOGO_IMAGESORUCE);
                         let image_size = egui::vec2(120., 60.);
                         image
                             .shrink_to_fit()
@@ -443,11 +509,11 @@ impl eframe::App for App {
                             .paint_at(
                                 ui,
                                 egui::Rect::from_center_size(
-                                    container_transform.inverse()
-                                        * Pos2::new(
-                                            ui.available_width() - image_size.x * 0.5,
-                                            ui.available_height() - image_size.y * 0.,
-                                        ),
+                                    //container_transform.inverse()
+                                    Pos2::new(
+                                        ui.clip_rect().right() - image_size.x * 0.7,
+                                        ui.clip_rect().bottom() - image_size.y * 0.5,
+                                    ),
                                     image_size / container_transform.scaling,
                                 ),
                             );
