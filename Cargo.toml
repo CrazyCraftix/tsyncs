@@ -8,9 +8,14 @@ rust-version = "1.72"
 [dependencies]
 egui = "0.27.2"
 eframe = { version = "0.27.2", default-features = false, features = [
+    #"default",       # Use the default set of features.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
+
+egui_extras = { features = ["default", "all_loaders"] }
+image = {version = "0.25.1", features = ["png"]}
+
 log = "0.4"
 
 # You only need serde if you want app persistence:
