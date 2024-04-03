@@ -57,7 +57,7 @@ impl PanZoomContainer {
         // this seems to be the cleanest way to get this to work
         let mut ui = ui.child_ui(ui.max_rect(), *ui.layout());
         let inner_response = ui
-            .with_layer_id(LayerId::new(egui::Order::Foreground, id), |ui| {
+            .with_layer_id(LayerId::new(egui::Order::Middle, id), |ui| {
                 ui.set_clip_rect(state.transform.inverse() * rect);
                 ui.ctx().set_transform_layer(ui.layer_id(), state.transform);
                 add_contents(ui, state.transform, &response)
