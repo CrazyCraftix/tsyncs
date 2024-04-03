@@ -13,8 +13,8 @@ eframe = { version = "0.27.2", default-features = false, features = [
     "persistence",   # Enable restoring app state when restarting the app.
 ] }
 
-egui_extras = { features = ["default", "all_loaders"] }
-image = {version = "0.25.1", features = ["png"]}
+egui_extras = { features = ["default", "all_loaders", "image", "svg"] }
+image = {version = "0.24", default-features = false, features = ["png"]}
 
 log = "0.4"
 
