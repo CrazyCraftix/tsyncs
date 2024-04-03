@@ -42,6 +42,17 @@ impl std::ops::DerefMut for MutexNodeId {
     }
 }
 
+pub enum EditingMode {
+    None,
+    Delete,
+}
+
+impl Default for EditingMode {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 #[derive(Clone, Copy)]
 enum AnyNode {
     Activity(ActivityNodeId),
@@ -69,6 +80,9 @@ pub struct Graph {
 
     #[serde(skip)]
     currently_connecting_from: Option<AnyNode>,
+
+    #[serde(skip)]
+    pub editing_mode: EditingMode,
 }
 
 impl Default for Graph {
@@ -83,6 +97,7 @@ impl Default for Graph {
             ticks_per_second: 1.,
             remaining_ticks_to_run: -1,
             currently_connecting_from: None,
+            editing_mode: EditingMode::None,
         }
     }
 }
@@ -581,111 +596,147 @@ impl Graph {
             node_right_clicked = None;
         }
 
-        // click existing node
-        if let Some(new_from_node) = match (
-            self.currently_connecting_from,
-            node_left_clicked.or(node_right_clicked),
-        ) {
-            (Some(AnyNode::Activity(from_activity_id)), Some(AnyNode::Mutex(to_mutex_id))) => {
-                self.toggle_connection(from_activity_id, to_mutex_id, Direction::ActivityToMutex);
-                Some(AnyNode::Mutex(to_mutex_id))
+        match self.editing_mode {
+            EditingMode::Delete => {
+                if container_response.secondary_clicked() {
+                    self.editing_mode = EditingMode::None;
+                    return;
+                }
+                if let Some(AnyNode::Activity(id)) = node_left_clicked {
+                    self.activity_nodes.swap_remove(&id);
+                    self.connections.remove(&id);
+                }
+                if let Some(AnyNode::Mutex(id)) = node_left_clicked {
+                    self.mutex_nodes.remove(&id);
+                    self.connections.iter_mut().for_each(|(_, connections)| {
+                        connections.remove(&id);
+                    });
+                }
             }
-            (Some(AnyNode::Mutex(from_mutex_id)), Some(AnyNode::Activity(to_activity_id))) => {
-                self.toggle_connection(to_activity_id, from_mutex_id, Direction::MutexToActivity);
-                Some(AnyNode::Activity(to_activity_id))
-            }
-            (
-                Some(AnyNode::Activity(from_activity_id)),
-                Some(AnyNode::Activity(to_activity_id)),
-            ) => {
-                if let (Some(from_activity), Some(to_activity)) = (
-                    self.activity_nodes.get(&from_activity_id),
-                    self.activity_nodes.get(&to_activity_id),
+            EditingMode::None => {
+                // click existing node
+                if let Some(new_from_node) = match (
+                    self.currently_connecting_from,
+                    node_left_clicked.or(node_right_clicked),
                 ) {
-                    let mutex_pos = from_activity.pos / 2. + to_activity.pos.to_vec2() / 2.;
-                    let mutex_id = self.add_mutex_node(MutexNode::new(mutex_pos));
-                    self.connect(from_activity_id, mutex_id, Direction::ActivityToMutex);
-                    self.connect(to_activity_id, mutex_id, Direction::MutexToActivity);
-                }
-                Some(AnyNode::Activity(to_activity_id))
-            }
-            (Some(AnyNode::Mutex(from_mutex_id)), Some(AnyNode::Mutex(to_mutex_id))) => {
-                if let (Some(from_mutex), Some(to_mutex)) = (
-                    self.mutex_nodes.get(&from_mutex_id),
-                    self.mutex_nodes.get(&to_mutex_id),
-                ) {
-                    let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
-                    let activity_id =
-                        self.add_activity_node(Graph::create_new_activity(activity_pos));
-                    self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
-                    self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
-                }
-                Some(AnyNode::Mutex(to_mutex_id))
-            }
-            _ => None,
-        } {
-            self.currently_connecting_from = match node_left_clicked.is_some() {
-                true => None,
-                false => Some(new_from_node),
-            };
-        }
-
-        // right click empty space (create nodes)
-        if container_response.secondary_clicked() {
-            if let Some(pos) = container_response.interact_pointer_pos() {
-                let pos = container_transform.inverse() * pos;
-                match self.currently_connecting_from {
-                    Some(AnyNode::Mutex(mutex_id)) => {
-                        let activity_id = self.add_activity_node(Graph::create_new_activity(pos));
-                        self.connect(activity_id, mutex_id, Direction::MutexToActivity);
-                        self.currently_connecting_from = Some(AnyNode::Activity(activity_id));
-                    }
-                    Some(AnyNode::Activity(activity_id)) => {
-                        let mutex_id = self.add_mutex_node(MutexNode::new(pos));
-                        self.connect(activity_id, mutex_id, Direction::ActivityToMutex);
-                        self.currently_connecting_from = Some(AnyNode::Mutex(mutex_id));
-                    }
-                    None => {
-                        self.add_activity_node(Graph::create_new_activity(pos));
-                    }
-                }
-            }
-        }
-
-        // left click empty space (click away)
-        if container_response.clicked() {
-            self.currently_connecting_from = None;
-        }
-
-        // draw connection preview
-        if let Some(pointer_pos) = ui.input(|i| i.pointer.latest_pos()) {
-            match self.currently_connecting_from {
-                Some(AnyNode::Mutex(id)) => {
-                    if let Some(node) = self.mutex_nodes.get(&id) {
-                        connection::Connection::draw_arrow(
-                            ui,
-                            node.pos,
-                            container_transform.inverse() * pointer_pos,
-                            connection::Color::Default,
-                            connection::Color::Default,
-                            0.,
+                    (
+                        Some(AnyNode::Activity(from_activity_id)),
+                        Some(AnyNode::Mutex(to_mutex_id)),
+                    ) => {
+                        self.toggle_connection(
+                            from_activity_id,
+                            to_mutex_id,
+                            Direction::ActivityToMutex,
                         );
+                        Some(AnyNode::Mutex(to_mutex_id))
                     }
-                }
-                Some(AnyNode::Activity(id)) => {
-                    if let Some(node) = self.activity_nodes.get(&id) {
-                        connection::Connection::draw_arrow(
-                            ui,
-                            node.pos,
-                            container_transform.inverse() * pointer_pos,
-                            connection::Color::Default,
-                            connection::Color::Default,
-                            0.,
+                    (
+                        Some(AnyNode::Mutex(from_mutex_id)),
+                        Some(AnyNode::Activity(to_activity_id)),
+                    ) => {
+                        self.toggle_connection(
+                            to_activity_id,
+                            from_mutex_id,
+                            Direction::MutexToActivity,
                         );
+                        Some(AnyNode::Activity(to_activity_id))
+                    }
+                    (
+                        Some(AnyNode::Activity(from_activity_id)),
+                        Some(AnyNode::Activity(to_activity_id)),
+                    ) => {
+                        if let (Some(from_activity), Some(to_activity)) = (
+                            self.activity_nodes.get(&from_activity_id),
+                            self.activity_nodes.get(&to_activity_id),
+                        ) {
+                            let mutex_pos = from_activity.pos / 2. + to_activity.pos.to_vec2() / 2.;
+                            let mutex_id = self.add_mutex_node(MutexNode::new(mutex_pos));
+                            self.connect(from_activity_id, mutex_id, Direction::ActivityToMutex);
+                            self.connect(to_activity_id, mutex_id, Direction::MutexToActivity);
+                        }
+                        Some(AnyNode::Activity(to_activity_id))
+                    }
+                    (Some(AnyNode::Mutex(from_mutex_id)), Some(AnyNode::Mutex(to_mutex_id))) => {
+                        if let (Some(from_mutex), Some(to_mutex)) = (
+                            self.mutex_nodes.get(&from_mutex_id),
+                            self.mutex_nodes.get(&to_mutex_id),
+                        ) {
+                            let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
+                            let activity_id =
+                                self.add_activity_node(Graph::create_new_activity(activity_pos));
+                            self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
+                            self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
+                        }
+                        Some(AnyNode::Mutex(to_mutex_id))
+                    }
+                    _ => None,
+                } {
+                    self.currently_connecting_from = match node_left_clicked.is_some() {
+                        true => None,
+                        false => Some(new_from_node),
+                    };
+                }
+
+                // right click empty space (create nodes)
+                if container_response.secondary_clicked() {
+                    if let Some(pos) = container_response.interact_pointer_pos() {
+                        let pos = container_transform.inverse() * pos;
+                        match self.currently_connecting_from {
+                            Some(AnyNode::Mutex(mutex_id)) => {
+                                let activity_id =
+                                    self.add_activity_node(Graph::create_new_activity(pos));
+                                self.connect(activity_id, mutex_id, Direction::MutexToActivity);
+                                self.currently_connecting_from =
+                                    Some(AnyNode::Activity(activity_id));
+                            }
+                            Some(AnyNode::Activity(activity_id)) => {
+                                let mutex_id = self.add_mutex_node(MutexNode::new(pos));
+                                self.connect(activity_id, mutex_id, Direction::ActivityToMutex);
+                                self.currently_connecting_from = Some(AnyNode::Mutex(mutex_id));
+                            }
+                            None => {
+                                self.add_activity_node(Graph::create_new_activity(pos));
+                            }
+                        }
                     }
                 }
-                None => (),
-            };
+
+                // left click empty space (click away)
+                if container_response.clicked() {
+                    self.currently_connecting_from = None;
+                }
+
+                // draw connection preview
+                if let Some(pointer_pos) = ui.input(|i| i.pointer.latest_pos()) {
+                    match self.currently_connecting_from {
+                        Some(AnyNode::Mutex(id)) => {
+                            if let Some(node) = self.mutex_nodes.get(&id) {
+                                connection::Connection::draw_arrow(
+                                    ui,
+                                    node.pos,
+                                    container_transform.inverse() * pointer_pos,
+                                    connection::Color::Default,
+                                    connection::Color::Default,
+                                    0.,
+                                );
+                            }
+                        }
+                        Some(AnyNode::Activity(id)) => {
+                            if let Some(node) = self.activity_nodes.get(&id) {
+                                connection::Connection::draw_arrow(
+                                    ui,
+                                    node.pos,
+                                    container_transform.inverse() * pointer_pos,
+                                    connection::Color::Default,
+                                    connection::Color::Default,
+                                    0.,
+                                );
+                            }
+                        }
+                        None => (),
+                    };
+                }
+            }
         }
     }
 

@@ -3,7 +3,7 @@ use std::{
     vec,
 };
 
-use egui::{Button, Layout, Pos2, Rect};
+use egui::{Layout, Pos2};
 
 use self::graph::Graph;
 use std::future;
@@ -325,6 +325,11 @@ impl eframe::App for App {
                             self.import_state = ImportState::JSON;
                         }
                     });
+                    egui::menu::menu_button(ui, "Edit", |ui| {
+                        if ui.button("🗑 Delete Mode").clicked() {
+                            self.graph.editing_mode = graph::EditingMode::Delete;
+                        }
+                    });
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         let previous_scaling = self.scaling_in_percent;
                         if ui.button("+").clicked() {
@@ -349,10 +354,23 @@ impl eframe::App for App {
                             if self.scaling_in_percent < 50. {
                                 self.scaling_in_percent = 50.;
                             }
-                        }
+                        };
+
                         if self.scaling_in_percent != previous_scaling {
                             ui.ctx()
                                 .set_zoom_factor(1.5 * self.scaling_in_percent / 100.);
+                        }
+
+                        if ui.label(
+                            egui::RichText::new(match self.graph.editing_mode {
+                                graph::EditingMode::None => "",
+                                graph::EditingMode::Delete => {
+                                    "Delete Mode active! Click here to exit."
+                                }
+                            })
+                            .color(egui::Color32::YELLOW),
+                        ).clicked() {
+                            self.graph.editing_mode = graph::EditingMode::None;
                         }
                     });
                 });
@@ -428,10 +446,11 @@ impl eframe::App for App {
                             .paint_at(
                                 ui,
                                 egui::Rect::from_center_size(
-                                    container_transform.inverse() * Pos2::new(
-                                        ui.available_width() - image_size.x * 0.5,
-                                        ui.available_height() - image_size.y * 0.,
-                                    ),
+                                    container_transform.inverse()
+                                        * Pos2::new(
+                                            ui.available_width() - image_size.x * 0.5,
+                                            ui.available_height() - image_size.y * 0.,
+                                        ),
                                     image_size / container_transform.scaling,
                                 ),
                             );
