@@ -1,7 +1,4 @@
-use std::{
-    sync::mpsc::{channel, Receiver, Sender},
-    vec,
-};
+use std::sync::mpsc::{channel, Receiver, Sender};
 
 use egui::{Layout, Pos2};
 
