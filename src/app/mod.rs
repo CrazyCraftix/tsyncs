@@ -1,6 +1,9 @@
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::{
+    sync::mpsc::{channel, Receiver, Sender},
+    vec,
+};
 
-use egui::{Button, Layout};
+use egui::{Button, Layout, Pos2, Rect};
 
 use self::graph::Graph;
 use std::future;
@@ -156,6 +159,8 @@ impl App {
             Some(storage) => eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default(),
             None => Default::default(),
         };
+
+        egui_extras::install_image_loaders(&creation_context.egui_ctx);
 
         creation_context
             .egui_ctx
@@ -415,6 +420,21 @@ impl eframe::App for App {
                 graphics::PanZoomContainer::new().show(
                     ui,
                     |ui, container_transform, container_response| {
+                        let image = egui::Image::new(egui::include_image!("../../assets/Logo.png"));
+                        let image_size = egui::vec2(120., 60.);
+                        image
+                            .shrink_to_fit()
+                            .tint(egui::Color32::DARK_GRAY)
+                            .paint_at(
+                                ui,
+                                egui::Rect::from_center_size(
+                                    container_transform.inverse() * Pos2::new(
+                                        ui.available_width() - image_size.x * 0.5,
+                                        ui.available_height() - image_size.y * 0.,
+                                    ),
+                                    image_size / container_transform.scaling,
+                                ),
+                            );
                         transform = container_transform;
                         self.graph.tick(ui);
                         self.graph
