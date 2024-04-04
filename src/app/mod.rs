@@ -1,6 +1,6 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-use egui::{Align, Layout, Pos2};
+use egui::{Layout, Pos2};
 
 use self::graph::Graph;
 use std::future;
@@ -14,8 +14,8 @@ mod graphics;
 #[serde(default)]
 pub struct App {
     graph: Graph,
-
     scaling_in_percent: f32,
+    show_about_dialog: bool,
 
     #[serde(skip)]
     text_channel: (Sender<String>, Receiver<String>),
@@ -23,8 +23,6 @@ pub struct App {
     file_buffer: String,
     #[serde(skip)]
     import_state: ImportState,
-    #[serde(skip)]
-    show_about_dialog: bool,
 }
 
 #[derive(PartialEq)]
@@ -139,7 +137,7 @@ impl Default for App {
 
         Self {
             graph,
-            show_about_dialog: false,
+            show_about_dialog: true,
             scaling_in_percent: 100.,
             text_channel: channel(),
             file_buffer: Default::default(),
@@ -335,17 +333,15 @@ impl eframe::App for App {
                             });
                             self.import_state = ImportState::Json;
                         }
-                        ui.separator();
-                        if ui.button("ℹ About").clicked() {
-                            ui.close_menu();
-                            self.show_about_dialog = !self.show_about_dialog;
-                        }
                     });
                     egui::menu::menu_button(ui, "Edit", |ui| {
                         if ui.button("🗑 Delete Mode").clicked() {
                             ui.close_menu();
                             self.graph.editing_mode = graph::EditingMode::Delete;
                         }
+                    });
+                    egui::menu::menu_button(ui, "View", |ui| {
+                        ui.checkbox(&mut self.show_about_dialog, " ℹ About");
                     });
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         let previous_scaling = self.scaling_in_percent;
@@ -451,59 +447,66 @@ impl eframe::App for App {
                 });
             });
 
-        if self.show_about_dialog {
-            egui::SidePanel::left("about_panel")
-                .resizable(false)
-                .min_width(320.)
-                .max_width(320.)
-                .show(ctx, |ui| {
-                    egui::scroll_area::ScrollArea::vertical().show(ui, |ui| {
-                        ui.add(egui::Image::new(LOGO_IMAGESORUCE).tint(egui::Color32::LIGHT_GRAY));
-                        ui.heading("Task Syncronisiaton Simulator - About");
-                        ui.label("This is a simple simulation of a graph of activities.");
+        egui::SidePanel::left("about_panel")
+            .resizable(true)
+            .default_width(350.)
+            .min_width(200.)
+            .max_width(500.)
+            .show_animated(ctx, self.show_about_dialog, |ui| {
+                ui.spacing_mut().item_spacing.x = 0.;
+                ui.spacing_mut().item_spacing.y = 10.;
+                egui::scroll_area::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+                    ui.vertical_centered(|ui|ui.add(egui::Image::new(LOGO_IMAGESORUCE).tint(egui::Color32::LIGHT_GRAY).max_height(125.)));
+                    ui.heading("Task Syncronisiaton Simulator");
 
-                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
-                            ui.label("Made with ♥ by");
-                            ui.hyperlink_to("Nicolai Bergmann", "https://github.com/CrazyCraftix");
-                            ui.label("and");
-                            ui.hyperlink_to("Mark Orlando Zeller", "https://the-maze.net");
-                            ui.label(".");
-                        });
+                    ui.label("A simple tool for simulating the execution of interdependent tasks.");
 
-                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
-                            ui.label("The project was created as part of the course 'Echtzeitsysteme' at the");
-                            ui.hyperlink_to("DHBW Stuttgart", "https://www.dhbw-stuttgart.de/");
-                            ui.label(".");
-                        });
-                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
-                            ui.label("This project is made with");
-                            ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                            ui.label(".");
-                        });
+                    ui.label("Tasks block until all inputs are > 0, then all inputs are decremented and the task starts running. When a task finishes, all outputs are incremented. Using these simple rules, it is possible to model complex systems, including synchronization mechanisms like semaphores and mutexes.");
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("View on ");
+                        ui.add(egui::Hyperlink::from_label_and_url(
+                            "GitHub",
+                            "https://github.com/CrazyCraftix/tsyncs",
+                        ).open_in_new_tab(true));
+                        ui.label(" for more information and documentation.");
                     });
 
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Also, try the ");
+                        ui.add(egui::Hyperlink::from_label_and_url("web version", "https://tsyncs.de").open_in_new_tab(true));
+                        ui.label("!");
+                    });
 
-                    ui.with_layout(Layout::bottom_up(egui::Align::Center), |ui| {
-                        ui.horizontal(|ui| {
-                            if ui.button("Documentation").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://github.com/CrazyCraftix/tsyncs"));
-                            }
-                            #[cfg(not(target_arch = "wasm32"))]
-                            if ui.button("Try the Web version").clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://tsyncs.de"));
-                            }
-                            if ui.button("Close").clicked() {
-                                self.show_about_dialog = false;
-                            }
-                        });
+                    ui.separator();
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("This project was created as part of the course 'Echtzeitsysteme' at the ");
+                        ui.add(egui::Hyperlink::from_label_and_url("DHBW Stuttgart", "https://www.dhbw-stuttgart.de/").open_in_new_tab(true));
+                        ui.label(".");
+                    });
+
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Made with ♥ by ");
+                        ui.add(egui::Hyperlink::from_label_and_url("Nicolai Bergmann", "https://github.com/CrazyCraftix").open_in_new_tab(true));
+                        ui.label(" and ");
+                        ui.add(egui::Hyperlink::from_label_and_url("Mark Orlando Zeller", "https://the-maze.net").open_in_new_tab(true));
+                        ui.label(".\nPowered by ");
+                        ui.add(egui::Hyperlink::from_label_and_url("egui", "https://github.com/emilk/egui").open_in_new_tab(true));
+                        ui.label(" and ");
+                        ui.add(egui::Hyperlink::from_label_and_url(
+                            "eframe",
+                            "https://github.com/emilk/egui/tree/master/crates/eframe",
+                        ).open_in_new_tab(true));
+                        ui.label(".");
                     });
                 });
-        }
+            });
 
         // main panel
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.centered_and_justified(|ui| {
-                let mut transform = Default::default();
                 graphics::PanZoomContainer::new().show(
                     ui,
                     |ui, container_transform, container_response| {
@@ -524,7 +527,6 @@ impl eframe::App for App {
                                     image_size / container_transform.scaling,
                                 ),
                             );
-                        transform = container_transform;
                         self.graph.tick(ui);
                         self.graph
                             .interact(ui, container_transform, container_response);
