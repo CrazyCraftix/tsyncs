@@ -257,7 +257,7 @@ impl eframe::App for App {
                             self.graph = Graph::default();
                         }
                         ui.separator();
-                        if ui.button("⬅ Import Graph").clicked() {
+                        if ui.button("➡ Import Graph").clicked() {
                             let sender = self.text_channel.0.clone();
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("Comma Seperated Values", &["csv"])
@@ -273,7 +273,7 @@ impl eframe::App for App {
                             self.import_state = ImportState::CSV;
                         }
 
-                        if ui.button("➡ Export Graph").clicked() {
+                        if ui.button("⬅ Export Graph").clicked() {
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All Files", &["*"])
@@ -508,10 +508,11 @@ impl eframe::App for App {
                                 ui,
                                 egui::Rect::from_center_size(
                                     //container_transform.inverse()
-                                    container_transform.inverse() * Pos2::new(
-                                        container_response.rect.right() - image_size.x * 0.7,
-                                        container_response.rect.bottom() - image_size.y * 0.5,
-                                    ),
+                                    container_transform.inverse()
+                                        * Pos2::new(
+                                            container_response.rect.right() - image_size.x * 0.7,
+                                            container_response.rect.bottom() - image_size.y * 0.5,
+                                        ),
                                     image_size / container_transform.scaling,
                                 ),
                             );
