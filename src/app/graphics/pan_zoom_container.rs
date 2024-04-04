@@ -74,7 +74,7 @@ impl PanZoomContainer {
 #[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 struct PanZoomContainerState {
     transform: TSTransform,
-    last_top_left: Pos2,
+    last_center: Pos2,
 }
 
 impl PanZoomContainerState {
@@ -124,12 +124,12 @@ impl PanZoomContainerState {
         // reset
         if response.double_clicked() {
             self.transform = Default::default();
-            self.last_top_left = Default::default();
+            self.last_center = Default::default();
         }
 
-        // offset to (potentially movable) parent ui
-        let top_left = response.rect.min;
-        self.transform.translation += top_left - self.last_top_left;
-        self.last_top_left = top_left;
+        // anchor the content in the center
+        let center = response.rect.center();
+        self.transform.translation += center - self.last_center;
+        self.last_center = center;
     }
 }
