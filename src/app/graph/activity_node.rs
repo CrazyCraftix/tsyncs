@@ -47,12 +47,12 @@ impl ActivityNode {
                 | response_circle
                 | response_task_name.clone()
                 | response_activity_name.clone();
-            if !ui.ctx().input(|i| i.pointer.secondary_down()) {
-                if response_union.dragged() || response_union.drag_stopped() {
-                    self.pos += response_union.drag_delta();
-                    response_task_name.surrender_focus();
-                    response_activity_name.surrender_focus();
-                }
+            if !ui.ctx().input(|i| i.pointer.secondary_down())
+                && (response_union.dragged() || response_union.drag_stopped())
+            {
+                self.pos += response_union.drag_delta();
+                response_task_name.surrender_focus();
+                response_activity_name.surrender_focus();
             }
             Some(response_union)
         } else {
@@ -176,15 +176,10 @@ impl ActivityNode {
         );
         self.response_activity_name_id = Some(response_activity_name.id);
 
-        ui.painter().rect_filled(
-            priority_rect,
-            priority_rounding,
-        style.bg_fill  );
-        ui.painter().rect_stroke(
-            priority_rect,
-            priority_rounding,
-            style.fg_stroke,
-        );
+        ui.painter()
+            .rect_filled(priority_rect, priority_rounding, style.bg_fill);
+        ui.painter()
+            .rect_stroke(priority_rect, priority_rounding, style.fg_stroke);
         ui.painter()
             .rect_stroke(outer_rect, outer_rounding, outline_stoke);
         ui.painter()

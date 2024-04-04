@@ -1,6 +1,6 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-use egui::{Align, Layout, OpenUrl, Pos2};
+use egui::{Align, Layout, Pos2};
 
 use self::graph::Graph;
 use std::future;
@@ -30,8 +30,8 @@ pub struct App {
 #[derive(PartialEq)]
 enum ImportState {
     Free,
-    CSV,
-    JSON,
+    Csv,
+    Json,
 }
 
 impl Default for App {
@@ -219,26 +219,26 @@ impl eframe::App for App {
 
         if !self.file_buffer.is_empty() && self.import_state != ImportState::Free {
             match self.import_state {
-                ImportState::CSV => match Graph::from_csv(&self.file_buffer) {
+                ImportState::Csv => match Graph::from_csv(&self.file_buffer) {
                     Ok(graph) => {
                         self.graph = graph;
                     }
                     Err(e) => {
                         rfd::MessageDialog::new()
                             .set_title("Parser Error")
-                            .set_description(&format!("Failed to import graph: {}", e))
+                            .set_description(format!("Failed to import graph: {}", e))
                             .set_level(rfd::MessageLevel::Error)
                             .show();
                     }
                 },
-                ImportState::JSON => match Graph::from_json(&self.file_buffer) {
+                ImportState::Json => match Graph::from_json(&self.file_buffer) {
                     Ok(graph) => {
                         self.graph = graph;
                     }
                     Err(e) => {
                         rfd::MessageDialog::new()
                             .set_title("Parser Error")
-                            .set_description(&format!("Failed to import graph: {}", e))
+                            .set_description(format!("Failed to import graph: {}", e))
                             .set_level(rfd::MessageLevel::Error)
                             .show();
                     }
@@ -270,7 +270,7 @@ impl eframe::App for App {
                                     let _ = sender.send(String::from_utf8_lossy(&text).to_string());
                                 }
                             });
-                            self.import_state = ImportState::CSV;
+                            self.import_state = ImportState::Csv;
                         }
 
                         if ui.button("⬅ Export Graph").clicked() {
@@ -308,7 +308,7 @@ impl eframe::App for App {
                                 Err(e) => {
                                     rfd::MessageDialog::new()
                                         .set_title("Parser Error")
-                                        .set_description(&format!("Failed to export graph: {}", e))
+                                        .set_description(format!("Failed to export graph: {}", e))
                                         .set_level(rfd::MessageLevel::Error)
                                         .show();
                                 }
@@ -328,7 +328,7 @@ impl eframe::App for App {
                                     let _ = sender.send(String::from_utf8_lossy(&text).to_string());
                                 }
                             });
-                            self.import_state = ImportState::JSON;
+                            self.import_state = ImportState::Json;
                         }
                         ui.separator();
                         if ui.button("ℹ About").clicked() {
@@ -409,13 +409,13 @@ impl eframe::App for App {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui
                             .add(
-                                egui::Button::new(format!(
-                                    "{}",
+                                egui::Button::new(
                                     match self.graph.is_running() {
                                         true => "⏸",
                                         false => "▶",
                                     }
-                                ))
+                                    .to_string(),
+                                )
                                 .min_size(egui::vec2(25., 0.)),
                             )
                             .clicked()
@@ -482,7 +482,7 @@ impl eframe::App for App {
                             }
                             #[cfg(not(target_arch = "wasm32"))]
                             if ui.button("Try the Web version").clicked() {
-                                ui.ctx().open_url(OpenUrl::new_tab("https://tsyncs.de"));
+                                ui.ctx().open_url(egui::OpenUrl::new_tab("https://tsyncs.de"));
                             }
                             if ui.button("Close").clicked() {
                                 self.show_about_dialog = false;

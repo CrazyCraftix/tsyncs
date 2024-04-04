@@ -25,9 +25,9 @@ pub enum Color {
     Default,
     Active,
 }
-impl Into<Vec<egui::Color32>> for Color {
-    fn into(self) -> Vec<egui::Color32> {
-        match self {
+impl From<Color> for Vec<egui::Color32> {
+    fn from(color: Color) -> Vec<egui::Color32> {
+        match color {
             Color::Default => vec![
                 egui::Color32::GRAY,
                 egui::Color32::GRAY,

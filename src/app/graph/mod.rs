@@ -104,7 +104,7 @@ impl Default for Graph {
 
 // import/export
 impl Graph {
-    pub fn from_csv(text: &String) -> Result<Self, Box<String>> {
+    pub fn from_csv(text: &str) -> Result<Self, String> {
         const SEPERATOR: char = ';';
         let mut graph = Graph::default();
 
@@ -199,7 +199,7 @@ impl Graph {
                 _ => {} // skip line
             }
         }
-        return Ok(graph);
+        Ok(graph)
     }
 
     pub fn to_csv(&self) -> String {
@@ -215,23 +215,23 @@ impl Graph {
                     Direction::ActivityToMutex => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(mutex_id.0);
                     }
                     Direction::MutexToActivity => {
                         connection_mutex_to_activity
                             .entry(mutex_id.0)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(activity_id.0);
                     }
                     Direction::TwoWay => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(mutex_id.0);
                         connection_mutex_to_activity
                             .entry(mutex_id.0)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(activity_id.0);
                     }
                 }
@@ -277,15 +277,15 @@ impl Graph {
             ));
         }
 
-        return csv;
+        csv
     }
 
     pub fn to_json(&self) -> Result<String, String> {
         serde_json::to_string(self).map_err(|_| "Error while serializing to JSON".into())
     }
 
-    pub fn from_json(text: &String) -> Result<Self, Box<String>> {
-        serde_json::from_str(text).map_err(|e| e.to_string().into())
+    pub fn from_json(text: &str) -> Result<Self, String> {
+        serde_json::from_str(text).map_err(|e| e.to_string())
     }
 }
 
@@ -375,8 +375,7 @@ impl Graph {
     ) -> bool {
         self.connections
             .get(&activity_id)
-            .map(|activity_connections| activity_connections.get(&mutex_id))
-            .flatten()
+            .and_then(|activity_connections| activity_connections.get(&mutex_id))
             .map(|connection| {
                 connection.direction == direction || connection.direction == Direction::TwoWay
             })
@@ -496,7 +495,7 @@ impl Graph {
                     return;
                 }
 
-                let activity_connections = self.connections.get(&activity_id);
+                let activity_connections = self.connections.get(activity_id);
 
                 // check if prerequisites are met
                 let prerequisites_missing =
@@ -507,8 +506,7 @@ impl Graph {
                                 connection.direction != Direction::ActivityToMutex
                             })
                             .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
-                            .find(|mutex_node| mutex_node.value <= 0)
-                            .is_some()
+                            .any(|mutex_node| mutex_node.value == 0)
                     });
                 if prerequisites_missing {
                     return;
@@ -518,17 +516,17 @@ impl Graph {
                 activity_node.remaining_duration = activity_node.duration;
 
                 // decrement prerequisites
-                activity_connections.map(|activity_connections| {
+                if let Some(activity_connections) = activity_connections {
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
                             if connection.direction != Direction::ActivityToMutex {
-                                self.mutex_nodes
-                                    .get_mut(mutex_id)
-                                    .map(|mutex_node| mutex_node.value -= 1);
+                                if let Some(mutex_node) = self.mutex_nodes.get_mut(mutex_id) {
+                                    mutex_node.value -= 1;
+                                }
                             }
                         });
-                });
+                }
             });
 
         // return to predictable order for drawing the ui
@@ -543,15 +541,15 @@ impl Graph {
             activity_node.remaining_duration -= 1;
 
             if activity_node.remaining_duration == 0 {
-                if let Some(activity_connections) = self.connections.get(&activity_id) {
+                if let Some(activity_connections) = self.connections.get(activity_id) {
                     // increment all outputs
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
                             if connection.direction != Direction::MutexToActivity {
-                                self.mutex_nodes
-                                    .get_mut(mutex_id)
-                                    .map(|mutex_node| mutex_node.value += 1);
+                                if let Some(mutex_node) = self.mutex_nodes.get_mut(mutex_id) {
+                                    mutex_node.value += 1;
+                                }
                             }
                         })
                 }
@@ -566,7 +564,7 @@ impl Graph {
         let mut activity_node = ActivityNode::new(pos);
         activity_node.activity_name = "Activity".to_string();
         activity_node.task_name = random_word::gen_len(thread_rng().gen_range(4..=8), Lang::En)
-            .unwrap_or_else(|| "Task")
+            .unwrap_or("Task")
             .to_string();
         activity_node.duration = 1;
         activity_node.priority = 0;

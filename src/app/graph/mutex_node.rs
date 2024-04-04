@@ -24,11 +24,11 @@ impl MutexNode {
             self.response_value_id
                 .map(|response_value_id| ui.ctx().read_response(response_value_id)),
         ) {
-            if !ui.ctx().input(|i| i.pointer.secondary_down()) {
-                if response_outer.dragged() || response_outer.drag_stopped() {
-                    self.pos += response_outer.drag_delta();
-                    response_value.surrender_focus();
-                }
+            if !ui.ctx().input(|i| i.pointer.secondary_down())
+                && (response_outer.dragged() || response_outer.drag_stopped())
+            {
+                self.pos += response_outer.drag_delta();
+                response_value.surrender_focus();
             }
 
             Some(response_outer | response_value)
