@@ -446,8 +446,9 @@ impl eframe::App for App {
 
         if self.show_about_dialog {
             egui::SidePanel::left("about_panel")
-                .min_width(250.)
-                .max_width(250.)
+                .resizable(false)
+                .min_width(320.)
+                .max_width(320.)
                 .show(ctx, |ui| {
                     egui::scroll_area::ScrollArea::vertical().show(ui, |ui| {
                         ui.add(egui::Image::new(LOGO_IMAGESORUCE).tint(egui::Color32::LIGHT_GRAY));
