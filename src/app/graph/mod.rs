@@ -42,6 +42,7 @@ impl std::ops::DerefMut for MutexNodeId {
     }
 }
 
+#[derive(PartialEq, Eq)]
 pub enum EditingMode {
     None,
     Delete,
@@ -583,6 +584,10 @@ impl Graph {
 
 // ux
 impl Graph {
+    pub fn queue_autofit(&mut self) {
+        self.needs_autofit = true;
+    }
+
     pub fn interact(
         &mut self,
         ui: &mut egui::Ui,
@@ -590,7 +595,9 @@ impl Graph {
         container_response: &egui::Response,
     ) {
         // autofit
-        if container_response.double_clicked() || self.needs_autofit {
+        if (container_response.double_clicked() && self.editing_mode != EditingMode::Delete)
+            || self.needs_autofit
+        {
             self.needs_autofit = false;
             if self.activity_nodes.is_empty() && self.mutex_nodes.is_empty() {
                 *container_transform = TSTransform::default();

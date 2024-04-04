@@ -15,7 +15,10 @@ mod graphics;
 pub struct App {
     graph: Graph,
     scaling_in_percent: f32,
+
     show_about_dialog: bool,
+    show_simulation_controls: bool,
+    pin_menu_bar: bool,
 
     #[serde(skip)]
     text_channel: (Sender<String>, Receiver<String>),
@@ -23,6 +26,9 @@ pub struct App {
     file_buffer: String,
     #[serde(skip)]
     import_state: ImportState,
+
+    #[serde(skip)]
+    seconds_until_hiding_menu_bar: f32,
 }
 
 #[derive(PartialEq)]
@@ -138,10 +144,13 @@ impl Default for App {
         Self {
             graph,
             show_about_dialog: true,
+            show_simulation_controls: true,
+            pin_menu_bar: true,
             scaling_in_percent: 100.,
             text_channel: channel(),
             file_buffer: Default::default(),
             import_state: ImportState::Free,
+            seconds_until_hiding_menu_bar: 0.,
         }
     }
 }
@@ -246,9 +255,15 @@ impl eframe::App for App {
             self.file_buffer.clear();
         }
 
+        if self.pin_menu_bar || ctx.pointer_interact_pos().map_or(false, |pos| pos.y < 25.) {
+            self.seconds_until_hiding_menu_bar = 2.;
+        } else if self.seconds_until_hiding_menu_bar > 0. {
+            self.seconds_until_hiding_menu_bar -= ctx.input(|i| i.unstable_dt);
+        }
+        let show_menu_bar = self.pin_menu_bar || self.seconds_until_hiding_menu_bar > 0.;
         egui::TopBottomPanel::top("top_panel")
             .min_height(0.)
-            .show(ctx, |ui| {
+            .show_animated(ctx, show_menu_bar, |ui| {
                 egui::menu::bar(ui, |ui| {
                     egui::menu::menu_button(ui, "File", |ui| {
                         if ui.button("📄 New Graph").clicked() {
@@ -342,6 +357,13 @@ impl eframe::App for App {
                     });
                     egui::menu::menu_button(ui, "View", |ui| {
                         ui.checkbox(&mut self.show_about_dialog, " ℹ About");
+                        ui.checkbox(&mut self.pin_menu_bar, " Pin Menu Bar");
+                        ui.checkbox(&mut self.show_simulation_controls, " Simulation Controls");
+                        ui.separator();
+                        if ui.button("[  ] Autofit Graph").clicked() {
+                            self.graph.queue_autofit();
+                            ui.close_menu();
+                        }
                     });
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         let previous_scaling = self.scaling_in_percent;
@@ -394,7 +416,7 @@ impl eframe::App for App {
 
         egui::TopBottomPanel::bottom("bottom_panel")
             .min_height(25.)
-            .show(ctx, |ui| {
+            .show_animated(ctx, self.show_simulation_controls, |ui| {
                 ui.horizontal_centered(|ui| {
                     egui::warn_if_debug_build(ui);
                     ui.style_mut().spacing.slider_width = 175.;
