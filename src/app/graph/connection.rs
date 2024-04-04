@@ -200,7 +200,6 @@ impl Connection {
         const ARROW_DEPTH: f32 = 3.;
         const SCROLL_SPEED_IN_POINTS_PER_SECOND: f32 = 4.;
 
-        ui.ctx().request_repaint();
         let time_offset = ui.input(|i| i.time) as f32 * SCROLL_SPEED_IN_POINTS_PER_SECOND
             % (ARROW_SPACING * color_1.len().max(color_2.len()) as f32);
         let color_offset = -(time_offset / ARROW_SPACING) as i32;

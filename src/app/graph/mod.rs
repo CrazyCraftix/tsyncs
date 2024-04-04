@@ -422,6 +422,7 @@ impl Graph {
         if self.remaining_ticks_to_run != 0 {
             let mut previous_tick_progress = self.tick_progress;
             self.tick_progress += ui.ctx().input(|i| i.stable_dt) * self.ticks_per_second;
+            ui.ctx().request_repaint(); // keep the simulation running
             loop {
                 if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
                     self.tick_a();
