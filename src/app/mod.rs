@@ -254,10 +254,12 @@ impl eframe::App for App {
                 egui::menu::bar(ui, |ui| {
                     egui::menu::menu_button(ui, "File", |ui| {
                         if ui.button("📄 New Graph").clicked() {
+                            ui.close_menu();
                             self.graph = Graph::default();
                         }
                         ui.separator();
                         if ui.button("➡ Import Graph").clicked() {
+                            ui.close_menu();
                             let sender = self.text_channel.0.clone();
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("Comma Seperated Values", &["csv"])
@@ -274,6 +276,7 @@ impl eframe::App for App {
                         }
 
                         if ui.button("⬅ Export Graph").clicked() {
+                            ui.close_menu();
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("Comma Seperated Values", &["csv"])
                                 .add_filter("All Files", &["*"])
@@ -290,6 +293,7 @@ impl eframe::App for App {
                         }
                         ui.separator();
                         if ui.button("💾 Save Graph").clicked() {
+                            ui.close_menu();
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("JSON", &["json"])
                                 .add_filter("All Files", &["*"])
@@ -316,6 +320,7 @@ impl eframe::App for App {
                         }
 
                         if ui.button("📂 Load Graph").clicked() {
+                            ui.close_menu();
                             let sender = self.text_channel.0.clone();
                             let task = rfd::AsyncFileDialog::new()
                                 .add_filter("JSON", &["json"])
@@ -332,11 +337,13 @@ impl eframe::App for App {
                         }
                         ui.separator();
                         if ui.button("ℹ About").clicked() {
+                            ui.close_menu();
                             self.show_about_dialog = !self.show_about_dialog;
                         }
                     });
                     egui::menu::menu_button(ui, "Edit", |ui| {
                         if ui.button("🗑 Delete Mode").clicked() {
+                            ui.close_menu();
                             self.graph.editing_mode = graph::EditingMode::Delete;
                         }
                     });
