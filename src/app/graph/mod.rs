@@ -3,7 +3,7 @@ pub mod connection;
 mod mutex_node;
 
 pub use activity_node::ActivityNode;
-use egui::Pos2;
+use egui::{emath::TSTransform, Pos2};
 pub use mutex_node::MutexNode;
 use rand::{thread_rng, Rng};
 use random_word::Lang;
@@ -83,6 +83,9 @@ pub struct Graph {
 
     #[serde(skip)]
     pub editing_mode: EditingMode,
+
+    #[serde(skip)]
+    needs_autofit: bool,
 }
 
 impl Default for Graph {
@@ -98,6 +101,7 @@ impl Default for Graph {
             remaining_ticks_to_run: -1,
             currently_connecting_from: None,
             editing_mode: EditingMode::None,
+            needs_autofit: true,
         }
     }
 }
@@ -413,6 +417,25 @@ impl Graph {
                 }
             });
     }
+
+    fn new_random_activity(pos: Pos2) -> ActivityNode {
+        let mut activity_node = ActivityNode::new(pos);
+        activity_node.activity_name = "Activity".to_string();
+        activity_node.task_name = random_word::gen_len(thread_rng().gen_range(4..=8), Lang::En)
+            .map_or("Task".to_string(), |s| {
+                // capitalize first character of the word
+                let mut chars = s.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first_char) => {
+                        first_char.to_uppercase().collect::<String>() + chars.as_str()
+                    }
+                }
+            });
+        activity_node.duration = 1;
+        activity_node.priority = 0;
+        activity_node
+    }
 }
 
 // simulation
@@ -560,23 +583,38 @@ impl Graph {
 
 // ux
 impl Graph {
-    fn create_new_activity(pos: Pos2) -> ActivityNode {
-        let mut activity_node = ActivityNode::new(pos);
-        activity_node.activity_name = "Activity".to_string();
-        activity_node.task_name = random_word::gen_len(thread_rng().gen_range(4..=8), Lang::En)
-            .unwrap_or("Task")
-            .to_string();
-        activity_node.duration = 1;
-        activity_node.priority = 0;
-        activity_node
-    }
-
     pub fn interact(
         &mut self,
         ui: &mut egui::Ui,
-        container_transform: egui::emath::TSTransform,
+        container_transform: &mut egui::emath::TSTransform,
         container_response: &egui::Response,
     ) {
+        // autofit
+        if container_response.double_clicked() || self.needs_autofit {
+            self.needs_autofit = false;
+            if self.activity_nodes.is_empty() && self.mutex_nodes.is_empty() {
+                *container_transform = TSTransform::default();
+            } else {
+                let mut bounding_rect = egui::Rect::NOTHING;
+                self.activity_nodes.iter().for_each(|(_, node)| {
+                    let rect = egui::Rect::from_center_size(node.pos, egui::vec2(150., 100.));
+                    bounding_rect = bounding_rect.union(rect);
+                });
+                self.mutex_nodes.iter().for_each(|(_, node)| {
+                    let rect = egui::Rect::from_center_size(node.pos, egui::vec2(50., 50.));
+                    bounding_rect = bounding_rect.union(rect);
+                });
+
+                let untransformed_viewport_rect = container_response.rect;
+                let scale_x = untransformed_viewport_rect.width() / bounding_rect.width();
+                let scale_y = untransformed_viewport_rect.height() / bounding_rect.height();
+                container_transform.scaling = scale_x.min(scale_y).min(1.8);
+                container_transform.translation = egui::Vec2::ZERO;
+                container_transform.translation = untransformed_viewport_rect.center().to_vec2()
+                    - (*container_transform * bounding_rect.center()).to_vec2();
+            }
+        }
+
         // node interactions
         let mut node_left_clicked = None;
         let mut node_right_clicked = None;
@@ -672,7 +710,7 @@ impl Graph {
                         ) {
                             let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
                             let activity_id =
-                                self.add_activity_node(Graph::create_new_activity(activity_pos));
+                                self.add_activity_node(Graph::new_random_activity(activity_pos));
                             self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
                             self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
                         }
@@ -693,7 +731,7 @@ impl Graph {
                         match self.currently_connecting_from {
                             Some(AnyNode::Mutex(mutex_id)) => {
                                 let activity_id =
-                                    self.add_activity_node(Graph::create_new_activity(pos));
+                                    self.add_activity_node(Graph::new_random_activity(pos));
                                 self.connect(activity_id, mutex_id, Direction::MutexToActivity);
                                 self.currently_connecting_from =
                                     Some(AnyNode::Activity(activity_id));
@@ -704,7 +742,7 @@ impl Graph {
                                 self.currently_connecting_from = Some(AnyNode::Mutex(mutex_id));
                             }
                             None => {
-                                self.add_activity_node(Graph::create_new_activity(pos));
+                                self.add_activity_node(Graph::new_random_activity(pos));
                             }
                         }
                     }

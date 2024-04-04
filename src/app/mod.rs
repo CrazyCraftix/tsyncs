@@ -527,10 +527,14 @@ impl eframe::App for App {
                                     image_size / container_transform.scaling,
                                 ),
                             );
+
                         self.graph.tick(ui);
-                        self.graph
-                            .interact(ui, container_transform, container_response);
-                        self.graph.draw(ui, container_transform);
+                        // skip first frame because interaction results don't exist yet
+                        if ui.ctx().frame_nr() != 0 {
+                            self.graph
+                                .interact(ui, container_transform, container_response);
+                        }
+                        self.graph.draw(ui, *container_transform);
                     },
                 );
             });

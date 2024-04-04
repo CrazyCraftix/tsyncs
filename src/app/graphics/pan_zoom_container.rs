@@ -39,7 +39,7 @@ impl PanZoomContainer {
     pub fn show<R>(
         self,
         ui: &mut egui::Ui,
-        add_contents: impl FnOnce(&mut egui::Ui, TSTransform, &egui::Response) -> R,
+        add_contents: impl FnOnce(&mut egui::Ui, &mut TSTransform, &egui::Response) -> R,
     ) -> egui::InnerResponse<R> {
         let id = ui.id().with(self.id_source);
 
@@ -51,7 +51,6 @@ impl PanZoomContainer {
         // update zomm and pan
         let mut state = PanZoomContainerState::load(ui.ctx(), id);
         state.handle_zoom_pan(&response);
-        state.store(ui.ctx(), id);
 
         // draw on a transformed layer inside a child ui, decoupled from the surrounding ui
         // this seems to be the cleanest way to get this to work
@@ -60,9 +59,11 @@ impl PanZoomContainer {
             .with_layer_id(LayerId::new(egui::Order::Middle, id), |ui| {
                 ui.set_clip_rect(state.transform.inverse() * rect);
                 ui.ctx().set_transform_layer(ui.layer_id(), state.transform);
-                add_contents(ui, state.transform, &response)
+                add_contents(ui, &mut state.transform, &response)
             })
             .inner;
+
+        state.store(ui.ctx(), id);
 
         egui::InnerResponse {
             inner: inner_response,
@@ -119,12 +120,6 @@ impl PanZoomContainerState {
         // pan
         if !response.ctx.input(|i| i.pointer.secondary_down()) {
             self.transform.translation += response.drag_delta();
-        }
-
-        // reset
-        if response.double_clicked() {
-            self.transform = Default::default();
-            self.last_center = Default::default();
         }
 
         // anchor the content in the center
