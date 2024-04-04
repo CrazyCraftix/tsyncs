@@ -1,6 +1,6 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-use egui::{Align, Button, Layout, OpenUrl, Pos2};
+use egui::{Align, Layout, OpenUrl, Pos2};
 
 use self::graph::Graph;
 use std::future;
@@ -458,8 +458,6 @@ impl eframe::App for App {
                             ui.label("Made with ♥ by");
                             ui.hyperlink_to("Nicolai Bergmann", "https://github.com/CrazyCraftix");
                             ui.label("and");
-                        });
-                        ui.with_layout(Layout::left_to_right(Align::LEFT).with_main_wrap(true), |ui| {
                             ui.hyperlink_to("Mark Orlando Zeller", "https://the-maze.net");
                             ui.label(".");
                         });
@@ -510,9 +508,9 @@ impl eframe::App for App {
                                 ui,
                                 egui::Rect::from_center_size(
                                     //container_transform.inverse()
-                                    Pos2::new(
-                                        ui.clip_rect().right() - image_size.x * 0.7,
-                                        ui.clip_rect().bottom() - image_size.y * 0.5,
+                                    container_transform.inverse() * Pos2::new(
+                                        container_response.rect.right() - image_size.x * 0.7,
+                                        container_response.rect.bottom() - image_size.y * 0.5,
                                     ),
                                     image_size / container_transform.scaling,
                                 ),
