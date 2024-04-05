@@ -8,12 +8,11 @@ use std::future;
 mod graph;
 mod graphics;
 
-//use native_dialog::{FileDialog, MessageDialog, MessageType};
-
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct App {
-    graph: Graph,
+    active_graph: Graph,
+    stored_graphs: Vec<Graph>,
     scaling_in_percent: f32,
 
     show_about_dialog: bool,
@@ -35,7 +34,6 @@ pub struct App {
 enum ImportState {
     Free,
     Csv,
-    Json,
 }
 
 impl Default for App {
@@ -110,39 +108,83 @@ impl Default for App {
         let m5b5a = graph.add_mutex_node(m5b5a);
         let m5a5b = graph.add_mutex_node(m5a5b);
 
-        graph.connect(a2, m24, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a4, m24, graph::connection::Direction::MutexToActivity);
+        graph.connect(a2, m24, graph::connection::Direction::ActivityToMutex, true);
+        graph.connect(a4, m24, graph::connection::Direction::MutexToActivity, true);
 
-        graph.connect(a1, m12, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a2, m12, graph::connection::Direction::MutexToActivity);
+        graph.connect(a1, m12, graph::connection::Direction::ActivityToMutex, true);
+        graph.connect(a2, m12, graph::connection::Direction::MutexToActivity, true);
 
-        graph.connect(a2, m234, graph::connection::Direction::TwoWay);
-        graph.connect(a3, m234, graph::connection::Direction::TwoWay);
-        graph.connect(a4, m234, graph::connection::Direction::TwoWay);
+        graph.connect(a2, m234, graph::connection::Direction::TwoWay, true);
+        graph.connect(a3, m234, graph::connection::Direction::TwoWay, true);
+        graph.connect(a4, m234, graph::connection::Direction::TwoWay, true);
 
-        graph.connect(a4, m46, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a6, m46, graph::connection::Direction::MutexToActivity);
+        graph.connect(a4, m46, graph::connection::Direction::ActivityToMutex, true);
+        graph.connect(a6, m46, graph::connection::Direction::MutexToActivity, true);
 
-        graph.connect(a1, m13, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a3, m13, graph::connection::Direction::MutexToActivity);
+        graph.connect(a1, m13, graph::connection::Direction::ActivityToMutex, true);
+        graph.connect(a3, m13, graph::connection::Direction::MutexToActivity, true);
 
-        graph.connect(a3, m36, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a6, m36, graph::connection::Direction::MutexToActivity);
+        graph.connect(a3, m36, graph::connection::Direction::ActivityToMutex, true);
+        graph.connect(a6, m36, graph::connection::Direction::MutexToActivity, true);
 
-        graph.connect(a6, m65a, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a5a, m65a, graph::connection::Direction::MutexToActivity);
+        graph.connect(
+            a6,
+            m65a,
+            graph::connection::Direction::ActivityToMutex,
+            true,
+        );
+        graph.connect(
+            a5a,
+            m65a,
+            graph::connection::Direction::MutexToActivity,
+            true,
+        );
 
-        graph.connect(a5b, m5b1, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a1, m5b1, graph::connection::Direction::MutexToActivity);
+        graph.connect(
+            a5b,
+            m5b1,
+            graph::connection::Direction::ActivityToMutex,
+            true,
+        );
+        graph.connect(
+            a1,
+            m5b1,
+            graph::connection::Direction::MutexToActivity,
+            true,
+        );
 
-        graph.connect(a5b, m5b5a, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a5a, m5b5a, graph::connection::Direction::MutexToActivity);
+        graph.connect(
+            a5b,
+            m5b5a,
+            graph::connection::Direction::ActivityToMutex,
+            true,
+        );
+        graph.connect(
+            a5a,
+            m5b5a,
+            graph::connection::Direction::MutexToActivity,
+            true,
+        );
 
-        graph.connect(a5a, m5a5b, graph::connection::Direction::ActivityToMutex);
-        graph.connect(a5b, m5a5b, graph::connection::Direction::MutexToActivity);
+        graph.connect(
+            a5a,
+            m5a5b,
+            graph::connection::Direction::ActivityToMutex,
+            true,
+        );
+        graph.connect(
+            a5b,
+            m5a5b,
+            graph::connection::Direction::MutexToActivity,
+            true,
+        );
+
+        graph.name = "Example Graph".to_string();
+        graph.toggle_play_pause();
 
         Self {
-            graph,
+            stored_graphs: vec![graph.clone()],
+            active_graph: graph,
             show_about_dialog: true,
             show_simulation_controls: true,
             pin_menu_bar: true,
@@ -225,10 +267,10 @@ impl eframe::App for App {
         }
 
         if !self.file_buffer.is_empty() && self.import_state != ImportState::Free {
-            match self.import_state {
-                ImportState::Csv => match Graph::from_csv(&self.file_buffer) {
+            if self.import_state == ImportState::Csv {
+                match Graph::from_csv(&self.file_buffer) {
                     Ok(graph) => {
-                        self.graph = graph;
+                        self.active_graph = graph;
                     }
                     Err(e) => {
                         rfd::MessageDialog::new()
@@ -237,20 +279,7 @@ impl eframe::App for App {
                             .set_level(rfd::MessageLevel::Error)
                             .show();
                     }
-                },
-                ImportState::Json => match Graph::from_json(&self.file_buffer) {
-                    Ok(graph) => {
-                        self.graph = graph;
-                    }
-                    Err(e) => {
-                        rfd::MessageDialog::new()
-                            .set_title("Parser Error")
-                            .set_description(format!("Failed to import graph: {}", e))
-                            .set_level(rfd::MessageLevel::Error)
-                            .show();
-                    }
-                },
-                _ => {}
+                }
             }
             self.file_buffer.clear();
         }
@@ -268,9 +297,75 @@ impl eframe::App for App {
                     egui::menu::menu_button(ui, "File", |ui| {
                         if ui.button("📄 New Graph").clicked() {
                             ui.close_menu();
-                            self.graph = Graph::default();
+                            self.active_graph = Graph::default();
                         }
+
                         ui.separator();
+
+                        if ui.button("💾 Save Graph").clicked() {
+                            self.stored_graphs
+                                .append(&mut vec![self.active_graph.clone()]);
+                        }
+
+                        ui.menu_button("📂 Load Graph", |ui| {
+                            egui::scroll_area::ScrollArea::vertical().show(ui, |ui| {
+                                if self.stored_graphs.is_empty() {
+                                    ui.label("nothing to load");
+                                    return;
+                                }
+
+                                ui.spacing_mut().item_spacing.x = 3.;
+                                let mut graph_to_delete = None;
+                                for i in (0..self.stored_graphs.len()).rev() {
+                                    ui.horizontal(|ui| {
+                                        ui.add(
+                                            egui::TextEdit::singleline(
+                                                &mut self.stored_graphs[i].name,
+                                            )
+                                            .desired_width(100.),
+                                        );
+                                        if ui.button("🗑").clicked() {
+                                            graph_to_delete = Some(i);
+                                        }
+                                        if ui.button("⬆").clicked()
+                                            && i + 1 < self.stored_graphs.len()
+                                        {
+                                            self.stored_graphs.swap(i, i + 1);
+                                        }
+                                        if ui.button("⬇").clicked() && i > 0 {
+                                            self.stored_graphs.swap(i - 1, i);
+                                        }
+                                        if ui.button("➡").clicked() {
+                                            self.active_graph = self.stored_graphs[i].clone();
+                                            ui.close_menu();
+                                        }
+                                    });
+                                }
+                                if let Some(i) = graph_to_delete {
+                                    self.stored_graphs.remove(i);
+                                }
+                            });
+                        });
+
+                        ui.separator();
+
+                        if ui.button("⬅ Export Graph").clicked() {
+                            ui.close_menu();
+                            let task = rfd::AsyncFileDialog::new()
+                                .add_filter("Comma Seperated Values", &["csv"])
+                                .add_filter("All Files", &["*"])
+                                .set_file_name(format!("{}.csv", self.active_graph.name))
+                                .save_file();
+                            let contents = self.active_graph.to_csv();
+                            execute(async move {
+                                let file = task.await;
+                                if let Some(file) = file {
+                                    println!("{}", file.file_name());
+                                    _ = file.write(contents.as_bytes()).await;
+                                }
+                            });
+                        }
+
                         if ui.button("➡ Import Graph").clicked() {
                             ui.close_menu();
                             let sender = self.text_channel.0.clone();
@@ -287,83 +382,22 @@ impl eframe::App for App {
                             });
                             self.import_state = ImportState::Csv;
                         }
-
-                        if ui.button("⬅ Export Graph").clicked() {
-                            ui.close_menu();
-                            let task = rfd::AsyncFileDialog::new()
-                                .add_filter("Comma Seperated Values", &["csv"])
-                                .add_filter("All Files", &["*"])
-                                .set_file_name("graph.csv")
-                                .save_file();
-                            let contents = self.graph.to_csv();
-                            execute(async move {
-                                let file = task.await;
-                                if let Some(file) = file {
-                                    println!("{}", file.file_name());
-                                    _ = file.write(contents.as_bytes()).await;
-                                }
-                            });
-                        }
-                        ui.separator();
-                        if ui.button("💾 Save Graph").clicked() {
-                            ui.close_menu();
-                            let task = rfd::AsyncFileDialog::new()
-                                .add_filter("JSON", &["json"])
-                                .add_filter("All Files", &["*"])
-                                .set_file_name("graph.json")
-                                .save_file();
-                            match self.graph.to_json() {
-                                Ok(contents) => {
-                                    let contents = contents.to_string();
-                                    execute(async move {
-                                        let file = task.await;
-                                        if let Some(file) = file {
-                                            _ = file.write(contents.as_bytes()).await;
-                                        }
-                                    });
-                                }
-                                Err(e) => {
-                                    rfd::MessageDialog::new()
-                                        .set_title("Parser Error")
-                                        .set_description(format!("Failed to export graph: {}", e))
-                                        .set_level(rfd::MessageLevel::Error)
-                                        .show();
-                                }
-                            };
-                        }
-
-                        if ui.button("📂 Load Graph").clicked() {
-                            ui.close_menu();
-                            let sender = self.text_channel.0.clone();
-                            let task = rfd::AsyncFileDialog::new()
-                                .add_filter("JSON", &["json"])
-                                .add_filter("All Files", &["*"])
-                                .pick_file();
-                            execute(async move {
-                                let file = task.await;
-                                if let Some(file) = file {
-                                    let text = file.read().await;
-                                    let _ = sender.send(String::from_utf8_lossy(&text).to_string());
-                                }
-                            });
-                            self.import_state = ImportState::Json;
-                        }
                     });
                     egui::menu::menu_button(ui, "Edit", |ui| {
                         if ui.button("🗑 Delete Mode").clicked() {
                             ui.close_menu();
-                            self.graph.editing_mode = graph::EditingMode::Delete;
+                            self.active_graph.editing_mode = graph::EditingMode::Delete;
                         }
                     });
                     egui::menu::menu_button(ui, "View", |ui| {
-                        ui.checkbox(&mut self.show_about_dialog, " ℹ About");
-                        ui.checkbox(&mut self.pin_menu_bar, " Pin Menu Bar");
-                        ui.checkbox(&mut self.show_simulation_controls, " Simulation Controls");
-                        ui.separator();
                         if ui.button("[  ] Autofit Graph").clicked() {
-                            self.graph.queue_autofit();
+                            self.active_graph.queue_autofit();
                             ui.close_menu();
                         }
+                        ui.separator();
+                        ui.checkbox(&mut self.pin_menu_bar, " Pin Menu Bar");
+                        ui.checkbox(&mut self.show_simulation_controls, " Simulation Controls");
+                        ui.checkbox(&mut self.show_about_dialog, " ℹ About");
                     });
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         let previous_scaling = self.scaling_in_percent;
@@ -398,7 +432,7 @@ impl eframe::App for App {
 
                         if ui
                             .label(
-                                egui::RichText::new(match self.graph.editing_mode {
+                                egui::RichText::new(match self.active_graph.editing_mode {
                                     graph::EditingMode::None => "",
                                     graph::EditingMode::Delete => {
                                         "Delete Mode active! Click here to exit."
@@ -408,8 +442,15 @@ impl eframe::App for App {
                             )
                             .clicked()
                         {
-                            self.graph.editing_mode = graph::EditingMode::None;
+                            self.active_graph.editing_mode = graph::EditingMode::None;
                         }
+                        ui.centered_and_justified(|ui| {
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.active_graph.name)
+                                    .horizontal_align(egui::Align::Center)
+                                    .frame(false),
+                            );
+                        });
                     });
                 });
             });
@@ -418,16 +459,18 @@ impl eframe::App for App {
             .min_height(25.)
             .show_animated(ctx, self.show_simulation_controls, |ui| {
                 ui.horizontal_centered(|ui| {
-                    egui::warn_if_debug_build(ui);
                     ui.style_mut().spacing.slider_width = 175.;
                     let response = ui.add(
-                        egui::widgets::Slider::new(&mut self.graph.ticks_per_second, 0.1..=50.0)
-                            .text("ticks per second")
-                            .logarithmic(true)
-                            .max_decimals(2),
+                        egui::widgets::Slider::new(
+                            &mut self.active_graph.ticks_per_second,
+                            0.1..=50.0,
+                        )
+                        .text("ticks per second")
+                        .logarithmic(true)
+                        .max_decimals(2),
                     );
                     if response.double_clicked() {
-                        self.graph.ticks_per_second = 1.0;
+                        self.active_graph.ticks_per_second = 1.0;
                         response.surrender_focus();
                     };
 
@@ -435,7 +478,7 @@ impl eframe::App for App {
                         if ui
                             .add(
                                 egui::Button::new(
-                                    match self.graph.is_running() {
+                                    match self.active_graph.is_running() {
                                         true => "⏸",
                                         false => "▶",
                                     }
@@ -445,25 +488,33 @@ impl eframe::App for App {
                             )
                             .clicked()
                         {
-                            self.graph.toggle_play_pause();
+                            self.active_graph.toggle_play_pause();
                         };
-                        if !self.graph.is_running() {
-                            let range = match self.graph.remaining_ticks_to_run {
+                        if !self.active_graph.is_running() {
+                            let mut remaining_ticks =
+                                self.active_graph.get_remaining_ticks_to_run();
+                            let range = match remaining_ticks {
                                 0 => 0..=1000,
                                 _ => 1..=1000,
                             };
                             if ui.button("Single Step").clicked() {
-                                self.graph.queue_tick();
+                                self.active_graph.queue_tick();
                             }
                             ui.separator();
                             ui.label("ticks remaining");
-                            ui.add(
-                                egui::DragValue::new(&mut self.graph.remaining_ticks_to_run)
-                                    .update_while_editing(false)
-                                    .speed(0.1)
-                                    .clamp_range(range)
-                                    .max_decimals(0),
-                            );
+                            if ui
+                                .add(
+                                    egui::DragValue::new(&mut remaining_ticks)
+                                        .update_while_editing(false)
+                                        .speed(0.1)
+                                        .clamp_range(range)
+                                        .max_decimals(0),
+                                )
+                                .changed()
+                            {
+                                self.active_graph
+                                    .set_remaining_ticks_to_run(remaining_ticks);
+                            };
                         }
                     });
                 });
@@ -487,6 +538,7 @@ impl eframe::App for App {
                 }
 
                 egui::scroll_area::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+                    egui::warn_if_debug_build(ui);
                     ui.vertical_centered(|ui|ui.add(egui::Image::new(LOGO_IMAGESORUCE).tint(egui::Color32::LIGHT_GRAY).max_height(125.)));
                     ui.heading("Task Synchronization Simulator");
 
@@ -559,13 +611,13 @@ impl eframe::App for App {
                                 ),
                             );
 
-                        self.graph.tick(ui);
+                        self.active_graph.tick(ui);
                         // skip first frame because interaction results don't exist yet
                         if ui.ctx().frame_nr() != 0 {
-                            self.graph
+                            self.active_graph
                                 .interact(ui, container_transform, container_response);
                         }
-                        self.graph.draw(ui, *container_transform);
+                        self.active_graph.draw(ui, *container_transform);
                     },
                 );
             });

@@ -5,7 +5,7 @@ pub enum Direction {
     TwoWay,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 enum MutexToActivityState {
     Uncharged,
     Charging,
@@ -14,7 +14,7 @@ enum MutexToActivityState {
     Uncharging,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
 enum ActivityToMutexState {
     Uncharged,
     Charging,
@@ -54,9 +54,9 @@ impl From<Color> for Vec<egui::Color32> {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Connection {
-    pub direction: Direction,
+    direction: Direction,
 
     activity_to_mutex_state: ActivityToMutexState,
     mutex_to_activity_state: MutexToActivityState,
@@ -71,7 +71,34 @@ impl Connection {
         }
     }
 
+    pub fn get_direction(&self) -> Direction {
+        self.direction
+    }
+
+    pub fn set_direction(&mut self, direction: Direction) {
+        self.direction = direction;
+        // reset states in case of reconnect
+        match self.direction {
+            Direction::MutexToActivity => {
+                self.activity_to_mutex_state = ActivityToMutexState::Uncharged
+            }
+            Direction::ActivityToMutex => {
+                self.mutex_to_activity_state = MutexToActivityState::Uncharged
+            }
+            Direction::TwoWay => {}
+        }
+    }
+
     pub fn tick(&mut self, activity_node: &super::ActivityNode, mutex_node: &super::MutexNode) {
+        self.tick_mutex_to_activity(activity_node, mutex_node);
+        self.tick_activity_to_mutex(activity_node);
+    }
+
+    pub fn tick_mutex_to_activity(
+        &mut self,
+        activity_node: &super::ActivityNode,
+        mutex_node: &super::MutexNode,
+    ) {
         if self.direction == Direction::MutexToActivity || self.direction == Direction::TwoWay {
             self.mutex_to_activity_state = match (
                 &self.mutex_to_activity_state,
@@ -90,6 +117,9 @@ impl Connection {
                 _ => MutexToActivityState::Charging,
             };
         }
+    }
+
+    pub fn tick_activity_to_mutex(&mut self, activity_node: &super::ActivityNode) {
         if self.direction == Direction::ActivityToMutex || self.direction == Direction::TwoWay {
             self.activity_to_mutex_state = match (
                 &self.activity_to_mutex_state,

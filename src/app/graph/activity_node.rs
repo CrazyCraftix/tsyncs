@@ -19,6 +19,23 @@ pub struct ActivityNode {
     response_activity_name_id: Option<egui::Id>,
 }
 
+impl Clone for ActivityNode {
+    fn clone(&self) -> Self {
+        Self {
+            pos: self.pos,
+            task_name: self.task_name.clone(),
+            activity_name: self.activity_name.clone(),
+            priority: self.priority,
+            duration: self.duration,
+            remaining_duration: self.remaining_duration,
+            response_outer_id: None,
+            response_circle_id: None,
+            response_task_name_id: None,
+            response_activity_name_id: None,
+        }
+    }
+}
+
 impl ActivityNode {
     pub fn new(pos: egui::Pos2) -> Self {
         Self {

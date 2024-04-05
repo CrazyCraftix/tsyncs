@@ -62,6 +62,7 @@ enum AnyNode {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Graph {
+    pub name: String,
     activity_nodes: indexmap::IndexMap<ActivityNodeId, ActivityNode>,
     mutex_nodes: std::collections::HashMap<MutexNodeId, MutexNode>,
 
@@ -77,7 +78,7 @@ pub struct Graph {
 
     pub ticks_per_second: f32,
 
-    pub remaining_ticks_to_run: i32,
+    remaining_ticks_to_run: i32,
 
     #[serde(skip)]
     currently_connecting_from: Option<AnyNode>,
@@ -89,9 +90,26 @@ pub struct Graph {
     autofit_rect: Option<egui::Rect>,
 }
 
+impl Clone for Graph {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            activity_nodes: self.activity_nodes.clone(),
+            mutex_nodes: self.mutex_nodes.clone(),
+            connections: self.connections.clone(),
+            next_activity_id: self.next_activity_id,
+            next_mutex_id: self.next_mutex_id,
+            tick_progress: self.tick_progress,
+            ticks_per_second: self.ticks_per_second,
+            ..Default::default()
+        }
+    }
+}
+
 impl Default for Graph {
     fn default() -> Self {
         Self {
+            name: "Unnamed Graph".into(),
             activity_nodes: indexmap::IndexMap::new(),
             mutex_nodes: std::collections::HashMap::new(),
             connections: std::collections::HashMap::new(),
@@ -99,7 +117,7 @@ impl Default for Graph {
             next_mutex_id: MutexNodeId(0),
             tick_progress: 0.,
             ticks_per_second: 1.,
-            remaining_ticks_to_run: -1,
+            remaining_ticks_to_run: 0,
             currently_connecting_from: None,
             editing_mode: EditingMode::None,
             autofit_rect: Some(egui::Rect::NAN),
@@ -121,7 +139,7 @@ impl Graph {
 
             // match first value to determine type of line
             match values[0].to_lowercase().as_str() {
-                "task" if values.len() >= 8 => {
+                "task" if values.len() >= 9 => {
                     let mut activity_node = ActivityNode::new(egui::Pos2 {
                         x: values[1].parse::<f32>().map_err(|_| {
                             format!("Error while parsing Position X in line: {}", line_number)
@@ -136,15 +154,21 @@ impl Graph {
                         })?);
                     activity_node.task_name = values[4].to_string();
                     activity_node.activity_name = values[5].to_string();
-                    activity_node.duration = values[6].parse::<u32>().map_err(|_| {
+                    activity_node.priority = values[6].parse::<u32>().map_err(|_| {
+                        format!("Error while parsing Priority in line: {}", line_number)
+                    })?;
+                    activity_node.duration = values[7].parse::<u32>().map_err(|_| {
                         format!("Error while parsing Duration in line: {}", line_number)
                     })?;
-                    activity_node.priority = values[7].parse::<u32>().map_err(|_| {
-                        format!("Error while parsing Priority in line: {}", line_number)
+                    activity_node.remaining_duration = values[8].parse::<u32>().map_err(|_| {
+                        format!(
+                            "Error while parsing Remaining Duration in line: {}",
+                            line_number
+                        )
                     })?;
                     graph.add_activiy_node_with_id(activity_node, activity_id);
 
-                    values[8..]
+                    values[9..]
                         .iter()
                         .filter(|x| !x.is_empty())
                         .find_map(|x| match x.parse::<usize>() {
@@ -153,6 +177,7 @@ impl Graph {
                                     activity_id,
                                     MutexNodeId(mutex_id),
                                     Direction::ActivityToMutex,
+                                    false,
                                 );
                                 None
                             }
@@ -178,7 +203,7 @@ impl Graph {
                             format!("Error while parsing ID in line: {}", line_number)
                         })?);
                     mutex_node.value = values[4].parse::<u32>().map_err(|_| {
-                        format!("Error while parsing Value in line: {}", line_number)
+                        format!("Error while parsing Mutex Value in line: {}", line_number)
                     })?;
                     graph.add_mutex_node_with_id(mutex_node, mutex_id);
 
@@ -191,6 +216,7 @@ impl Graph {
                                     ActivityNodeId(activity_id),
                                     mutex_id,
                                     Direction::MutexToActivity,
+                                    false,
                                 );
                                 None
                             }
@@ -204,6 +230,7 @@ impl Graph {
                 _ => {} // skip line
             }
         }
+        graph.update_connection_states();
         Ok(graph)
     }
 
@@ -216,7 +243,7 @@ impl Graph {
 
         for (activity_id, activity_connections) in &self.connections {
             for (mutex_id, connection) in activity_connections {
-                match connection.direction {
+                match connection.get_direction() {
                     Direction::ActivityToMutex => {
                         connection_activity_to_mutex
                             .entry(activity_id.0)
@@ -244,20 +271,21 @@ impl Graph {
         }
 
         let mut csv = String::new();
-        //add header
-        csv.push_str("Type;Position X;Position Y;ID;Parameters\n");
+        csv.push_str("Type;Position X;Position Y;ID;Parameters...\n");
 
         // add tasks
+        csv.push_str("\"Task\";Position X;Position Y;ID;Task Name;Activity Name;Priority;Duration;Remaining Duration;Connected Mutex IDs...\n");
         for (activity_id, activity_node) in &self.activity_nodes {
             csv.push_str(&format!(
-                "Task{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
+                "Task{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
                 activity_node.pos.x,
                 activity_node.pos.y,
                 activity_id.0,
                 activity_node.task_name,
                 activity_node.activity_name,
-                activity_node.duration,
                 activity_node.priority,
+                activity_node.duration,
+                activity_node.remaining_duration,
                 connection_activity_to_mutex
                     .get(&activity_id.0)
                     .map(|x| x.iter().map(|x| x.to_string()).collect::<Vec<String>>())
@@ -267,6 +295,7 @@ impl Graph {
         }
 
         // add mutexes
+        csv.push_str("\"Mutex\";Position X;Position Y;ID;Mutex Value;Connected Task IDs...\n");
         for (mutex_id, mutex_node) in &self.mutex_nodes {
             csv.push_str(&format!(
                 "Mutex{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
@@ -283,14 +312,6 @@ impl Graph {
         }
 
         csv
-    }
-
-    pub fn to_json(&self) -> Result<String, String> {
-        serde_json::to_string(self).map_err(|_| "Error while serializing to JSON".into())
-    }
-
-    pub fn from_json(text: &str) -> Result<Self, String> {
-        serde_json::from_str(text).map_err(|e| e.to_string())
     }
 }
 
@@ -327,15 +348,47 @@ impl Graph {
         activity_id: ActivityNodeId,
         mutex_id: MutexNodeId,
         direction: Direction,
+        update_connections: bool,
     ) {
         let mut activity_connections = self.connections.remove(&activity_id).unwrap_or_default();
         let connection = match activity_connections.remove(&mutex_id) {
-            Some(mut previous_connection) if previous_connection.direction != direction => {
-                previous_connection.direction = Direction::TwoWay;
+            Some(mut previous_connection) if previous_connection.get_direction() != direction => {
+                let previous_direction = previous_connection.get_direction();
+                previous_connection.set_direction(Direction::TwoWay);
+
+                if update_connections {
+                    if let (Some(activity_node), Some(mutex_node)) = (
+                        self.activity_nodes.get(&activity_id),
+                        self.mutex_nodes.get(&mutex_id),
+                    ) {
+                        match previous_direction {
+                            Direction::MutexToActivity => {
+                                previous_connection.tick_activity_to_mutex(activity_node);
+                            }
+                            Direction::ActivityToMutex => {
+                                previous_connection
+                                    .tick_mutex_to_activity(activity_node, mutex_node);
+                            }
+                            Direction::TwoWay => {}
+                        }
+                    }
+                }
+
                 previous_connection
             }
             Some(previous_connection) => previous_connection,
-            None => connection::Connection::new(direction),
+            None => {
+                let mut connection = connection::Connection::new(direction);
+                if update_connections {
+                    if let (Some(activity_node), Some(mutex_node)) = (
+                        self.activity_nodes.get(&activity_id),
+                        self.mutex_nodes.get(&mutex_id),
+                    ) {
+                        connection.tick(activity_node, mutex_node);
+                    }
+                }
+                connection
+            }
         };
         activity_connections.insert(mutex_id, connection);
         self.connections.insert(activity_id, activity_connections);
@@ -349,7 +402,7 @@ impl Graph {
     ) {
         if let Some(mut activity_connections) = self.connections.remove(&activity_id) {
             if let Some(mut connection) = activity_connections.remove(&mutex_id) {
-                if let Some(new_direction) = match (connection.direction, direction) {
+                if let Some(new_direction) = match (connection.get_direction(), direction) {
                     (Direction::MutexToActivity, Direction::ActivityToMutex) => {
                         Some(Direction::MutexToActivity)
                     }
@@ -364,12 +417,18 @@ impl Graph {
                     }
                     _ => None,
                 } {
-                    connection.direction = new_direction;
+                    connection.set_direction(new_direction);
                     activity_connections.insert(mutex_id, connection);
                 }
             };
             self.connections.insert(activity_id, activity_connections);
         }
+    }
+
+    pub fn update_connection_states(&mut self) {
+        self.do_per_connection(|connection, activity_node, mutex_node| {
+            connection.tick(activity_node, mutex_node);
+        });
     }
 
     pub fn is_connected(
@@ -382,7 +441,8 @@ impl Graph {
             .get(&activity_id)
             .and_then(|activity_connections| activity_connections.get(&mutex_id))
             .map(|connection| {
-                connection.direction == direction || connection.direction == Direction::TwoWay
+                connection.get_direction() == direction
+                    || connection.get_direction() == Direction::TwoWay
             })
             .unwrap_or(false)
     }
@@ -396,7 +456,7 @@ impl Graph {
         if self.is_connected(activity_id, mutex_id, direction) {
             self.disconnect(activity_id, mutex_id, direction);
         } else {
-            self.connect(activity_id, mutex_id, direction);
+            self.connect(activity_id, mutex_id, direction, true);
         }
     }
 
@@ -449,11 +509,15 @@ impl Graph {
             loop {
                 if previous_tick_progress < 0.5 && self.tick_progress >= 0.5 {
                     self.tick_a();
-                    self.do_per_connection(|c, a, m| c.tick(a, m));
+                    self.do_per_connection(|c, a, m| {
+                        c.tick(a, m);
+                    });
                 }
                 if self.tick_progress >= 1. {
                     self.tick_b();
-                    self.do_per_connection(|c, a, m| c.tick(a, m));
+                    self.do_per_connection(|c, a, m| {
+                        c.tick(a, m);
+                    });
 
                     self.tick_progress -= 1.;
                     if self.remaining_ticks_to_run > 0 {
@@ -469,23 +533,6 @@ impl Graph {
                     break;
                 }
             }
-        }
-    }
-
-    pub fn queue_tick(&mut self) {
-        if self.remaining_ticks_to_run >= 0 {
-            self.remaining_ticks_to_run += 1;
-        }
-    }
-
-    pub fn is_running(&self) -> bool {
-        self.remaining_ticks_to_run < 0
-    }
-
-    pub fn toggle_play_pause(&mut self) {
-        self.remaining_ticks_to_run = match self.remaining_ticks_to_run {
-            -1 => 1,
-            _ => -1,
         }
     }
 
@@ -527,7 +574,7 @@ impl Graph {
                         activity_connections
                             .iter()
                             .filter(|(_, connection)| {
-                                connection.direction != Direction::ActivityToMutex
+                                connection.get_direction() != Direction::ActivityToMutex
                             })
                             .filter_map(|(mutex_id, _)| self.mutex_nodes.get(mutex_id))
                             .any(|mutex_node| mutex_node.value == 0)
@@ -544,7 +591,7 @@ impl Graph {
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
-                            if connection.direction != Direction::ActivityToMutex {
+                            if connection.get_direction() != Direction::ActivityToMutex {
                                 if let Some(mutex_node) = self.mutex_nodes.get_mut(mutex_id) {
                                     mutex_node.value -= 1;
                                 }
@@ -570,7 +617,7 @@ impl Graph {
                     activity_connections
                         .iter()
                         .for_each(|(mutex_id, connection)| {
-                            if connection.direction != Direction::MutexToActivity {
+                            if connection.get_direction() != Direction::MutexToActivity {
                                 if let Some(mutex_node) = self.mutex_nodes.get_mut(mutex_id) {
                                     mutex_node.value += 1;
                                 }
@@ -579,6 +626,31 @@ impl Graph {
                 }
             }
         }
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.remaining_ticks_to_run < 0
+    }
+
+    pub fn toggle_play_pause(&mut self) {
+        self.remaining_ticks_to_run = match self.remaining_ticks_to_run {
+            -1 => 1,
+            _ => -1,
+        }
+    }
+
+    pub fn queue_tick(&mut self) {
+        if self.remaining_ticks_to_run >= 0 {
+            self.set_remaining_ticks_to_run(self.remaining_ticks_to_run + 1);
+        }
+    }
+
+    pub fn set_remaining_ticks_to_run(&mut self, ticks: i32) {
+        self.remaining_ticks_to_run = ticks;
+    }
+
+    pub fn get_remaining_ticks_to_run(&self) -> i32 {
+        self.remaining_ticks_to_run
     }
 }
 
@@ -715,8 +787,18 @@ impl Graph {
                         ) {
                             let mutex_pos = from_activity.pos / 2. + to_activity.pos.to_vec2() / 2.;
                             let mutex_id = self.add_mutex_node(MutexNode::new(mutex_pos));
-                            self.connect(from_activity_id, mutex_id, Direction::ActivityToMutex);
-                            self.connect(to_activity_id, mutex_id, Direction::MutexToActivity);
+                            self.connect(
+                                from_activity_id,
+                                mutex_id,
+                                Direction::ActivityToMutex,
+                                true,
+                            );
+                            self.connect(
+                                to_activity_id,
+                                mutex_id,
+                                Direction::MutexToActivity,
+                                true,
+                            );
                         }
                         Some(AnyNode::Activity(to_activity_id))
                     }
@@ -728,8 +810,18 @@ impl Graph {
                             let activity_pos = from_mutex.pos / 2. + to_mutex.pos.to_vec2() / 2.;
                             let activity_id =
                                 self.add_activity_node(Graph::new_random_activity(activity_pos));
-                            self.connect(activity_id, from_mutex_id, Direction::MutexToActivity);
-                            self.connect(activity_id, to_mutex_id, Direction::ActivityToMutex);
+                            self.connect(
+                                activity_id,
+                                from_mutex_id,
+                                Direction::MutexToActivity,
+                                true,
+                            );
+                            self.connect(
+                                activity_id,
+                                to_mutex_id,
+                                Direction::ActivityToMutex,
+                                true,
+                            );
                         }
                         Some(AnyNode::Mutex(to_mutex_id))
                     }
@@ -749,13 +841,23 @@ impl Graph {
                             Some(AnyNode::Mutex(mutex_id)) => {
                                 let activity_id =
                                     self.add_activity_node(Graph::new_random_activity(pos));
-                                self.connect(activity_id, mutex_id, Direction::MutexToActivity);
+                                self.connect(
+                                    activity_id,
+                                    mutex_id,
+                                    Direction::MutexToActivity,
+                                    true,
+                                );
                                 self.currently_connecting_from =
                                     Some(AnyNode::Activity(activity_id));
                             }
                             Some(AnyNode::Activity(activity_id)) => {
                                 let mutex_id = self.add_mutex_node(MutexNode::new(pos));
-                                self.connect(activity_id, mutex_id, Direction::ActivityToMutex);
+                                self.connect(
+                                    activity_id,
+                                    mutex_id,
+                                    Direction::ActivityToMutex,
+                                    true,
+                                );
                                 self.currently_connecting_from = Some(AnyNode::Mutex(mutex_id));
                             }
                             None => {

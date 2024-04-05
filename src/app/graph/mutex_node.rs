@@ -9,6 +9,17 @@ pub struct MutexNode {
     response_value_id: Option<egui::Id>,
 }
 
+impl Clone for MutexNode {
+    fn clone(&self) -> Self {
+        Self {
+            pos: self.pos,
+            value: self.value,
+            response_outer_id: None,
+            response_value_id: None,
+        }
+    }
+}
+
 impl MutexNode {
     pub fn new(pos: egui::Pos2) -> Self {
         Self {
