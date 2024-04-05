@@ -86,7 +86,7 @@ pub struct Graph {
     pub editing_mode: EditingMode,
 
     #[serde(skip)]
-    needs_autofit: bool,
+    autofit_rect: Option<egui::Rect>,
 }
 
 impl Default for Graph {
@@ -102,7 +102,7 @@ impl Default for Graph {
             remaining_ticks_to_run: -1,
             currently_connecting_from: None,
             editing_mode: EditingMode::None,
-            needs_autofit: true,
+            autofit_rect: Some(egui::Rect::NAN),
         }
     }
 }
@@ -585,7 +585,7 @@ impl Graph {
 // ux
 impl Graph {
     pub fn queue_autofit(&mut self) {
-        self.needs_autofit = true;
+        self.autofit_rect = Some(egui::Rect::NAN);
     }
 
     pub fn interact(
@@ -595,13 +595,19 @@ impl Graph {
         container_response: &egui::Response,
     ) {
         // autofit
-        if (container_response.double_clicked() && self.editing_mode != EditingMode::Delete)
-            || self.needs_autofit
-        {
-            self.needs_autofit = false;
-            if self.activity_nodes.is_empty() && self.mutex_nodes.is_empty() {
-                *container_transform = TSTransform::default();
-            } else {
+        if container_response.double_clicked() && self.editing_mode != EditingMode::Delete {
+            self.queue_autofit();
+        }
+
+        if let Some(last_autofit_frame_rect) = self.autofit_rect {
+            let untransformed_viewport_rect = container_response.rect;
+            if last_autofit_frame_rect == untransformed_viewport_rect
+                && untransformed_viewport_rect.width() >= 150.
+                && untransformed_viewport_rect.height() >= 150.
+            {
+                self.autofit_rect = None;
+            } else if untransformed_viewport_rect.is_positive() {
+                self.autofit_rect = Some(untransformed_viewport_rect);
                 let mut bounding_rect = egui::Rect::NOTHING;
                 self.activity_nodes.iter().for_each(|(_, node)| {
                     let rect = egui::Rect::from_center_size(node.pos, egui::vec2(150., 100.));
@@ -612,13 +618,17 @@ impl Graph {
                     bounding_rect = bounding_rect.union(rect);
                 });
 
-                let untransformed_viewport_rect = container_response.rect;
-                let scale_x = untransformed_viewport_rect.width() / bounding_rect.width();
-                let scale_y = untransformed_viewport_rect.height() / bounding_rect.height();
-                container_transform.scaling = scale_x.min(scale_y).min(1.8);
-                container_transform.translation = egui::Vec2::ZERO;
-                container_transform.translation = untransformed_viewport_rect.center().to_vec2()
-                    - (*container_transform * bounding_rect.center()).to_vec2();
+                if bounding_rect.is_positive() {
+                    let scale_x = untransformed_viewport_rect.width() / bounding_rect.width();
+                    let scale_y = untransformed_viewport_rect.height() / bounding_rect.height();
+                    container_transform.scaling = scale_x.min(scale_y).min(1.8);
+                    container_transform.translation = egui::Vec2::ZERO;
+                    container_transform.translation =
+                        untransformed_viewport_rect.center().to_vec2()
+                            - (*container_transform * bounding_rect.center()).to_vec2();
+                } else {
+                    *container_transform = TSTransform::default();
+                }
             }
         }
 
