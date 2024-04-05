@@ -595,7 +595,7 @@ impl Graph {
         container_response: &egui::Response,
     ) {
         // autofit
-        if container_response.double_clicked() && self.editing_mode != EditingMode::Delete {
+        if container_response.triple_clicked() && self.editing_mode != EditingMode::Delete {
             self.queue_autofit();
         }
 
