@@ -477,9 +477,18 @@ impl eframe::App for App {
             .show_animated(ctx, self.show_about_dialog, |ui| {
                 ui.spacing_mut().item_spacing.x = 0.;
                 ui.spacing_mut().item_spacing.y = 10.;
+
+                // pinned close button
+                let right_top = ui.available_rect_before_wrap().right_top();
+                let rect = egui::Rect::from_points(&[right_top, right_top + egui::vec2(-20., 20.)]);
+                ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "❌", egui::FontId::proportional(15.), egui::Color32::GRAY);
+                if ui.input(|i| i.pointer.primary_clicked()) && ui.rect_contains_pointer(rect) {
+                    self.show_about_dialog = false;
+                }
+
                 egui::scroll_area::ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
                     ui.vertical_centered(|ui|ui.add(egui::Image::new(LOGO_IMAGESORUCE).tint(egui::Color32::LIGHT_GRAY).max_height(125.)));
-                    ui.heading("Task Syncronisiaton Simulator");
+                    ui.heading("Task Synchronization Simulator");
 
                     ui.label("A simple tool for simulating the execution of interdependent tasks.");
 
