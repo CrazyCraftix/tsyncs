@@ -274,7 +274,7 @@ impl Graph {
         csv.push_str("Type;Position X;Position Y;ID;Parameters...\n");
 
         // add tasks
-        csv.push_str("\"Task\";Position X;Position Y;ID;Task Name;Activity Name;Priority;Duration;Remaining Duration;Connected Mutex IDs...\n");
+        csv.push_str("#Task;Position X;Position Y;ID;Task Name;Activity Name;Priority;Duration;Remaining Duration;[Semicolon seperated list of connected Mutex IDs]\n");
         for (activity_id, activity_node) in &self.activity_nodes {
             csv.push_str(&format!(
                 "Task{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
@@ -295,7 +295,7 @@ impl Graph {
         }
 
         // add mutexes
-        csv.push_str("\"Mutex\";Position X;Position Y;ID;Mutex Value;Connected Task IDs...\n");
+        csv.push_str("#Mutex;Position X;Position Y;ID;Mutex Value;[Semicolon seperated list of connected Mutex IDs]\n");
         for (mutex_id, mutex_node) in &self.mutex_nodes {
             csv.push_str(&format!(
                 "Mutex{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
