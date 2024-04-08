@@ -278,8 +278,8 @@ impl Graph {
         for (activity_id, activity_node) in &self.activity_nodes {
             csv.push_str(&format!(
                 "Task{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
-                activity_node.pos.x,
-                activity_node.pos.y,
+                activity_node.pos.x.round() as i64,
+                activity_node.pos.y.round() as i64,
                 activity_id.0,
                 activity_node.task_name,
                 activity_node.activity_name,
@@ -299,8 +299,8 @@ impl Graph {
         for (mutex_id, mutex_node) in &self.mutex_nodes {
             csv.push_str(&format!(
                 "Mutex{seperator}{}{seperator}{}{seperator}{}{seperator}{}{seperator}{}\n",
-                mutex_node.pos.x,
-                mutex_node.pos.y,
+                mutex_node.pos.x.round() as i64,
+                mutex_node.pos.y.round() as i64,
                 mutex_id.0,
                 mutex_node.value,
                 connection_mutex_to_activity
