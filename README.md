@@ -1,42 +1,59 @@
 <img src="assets/Logo.svg" alt="tsyncs logo" width="400"/>
 
-# Task Synchronisation Simulator
-A simple tool to simulate the execution of interdependent tasks. Try it out at [tsyncs.de](https://tsyncs.de/).
+# Task Synchronization Simulator
+A simple tool to simulate the execution of interdependent tasks.
+Try it out at [tsyncs.de](https://tsyncs.de/).
 
 ## Tutorial
-tsyncs provides a convenient way to load and visualise task graphs. At the top is the menu bar. Here you can import and export task charts, save and load your current session, and start a new session. You can also edit the diagram and change the view.
+tsyncs provides a convenient way to load and visualize task graphs.
+At the top is the menu bar.
+Here you can import and export task charts, save and load your current session, and start a new session.
+You can also edit the diagram and change the view.
 
 ![UserInterface](assets/UI-Description.png)
 
 ### File Menu
-To load a task, select 'File -> Import Graph...' and select a CSV file containing the task graph. You can also export the current graph as a CSV file by choosing `File -> Export Graph...`.
-You can also save the current session by selecting 'File -> Save Graph...' and load a saved session by selecting 'File -> Load Graph'.
+To load a graph, select `File -> Import Graph...` and select a CSV file containing the task graph.
+You can also export the current graph as a CSV file by choosing `File -> Export Graph...`.
+You can also save the current session by selecting `File -> Save Graph...` and load a saved session by selecting `File -> Load Graph`.
 
-To start a new empty session select 'File -> New Graph'.
+To start a new empty session select `File -> New Graph`.
 
 ### Editing the Graph
-The task graph is displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
+The task graph is displayed in the center of the screen.
+You can zoom in and out using `CTRL` `mouse wheel` and pan by dragging the mouse.
+You can move nodes by dragging them.
 
-The tasks and mutexes are connected by arrows, which represent the dependencies between the tasks. The arrows are coloured according to where the tasks are flowing. A running task is highlighted by a green border, a waiting task by a red border.
+The tasks and mutexes are connected by arrows, which represent the dependencies between the tasks.
+A running task is highlighted by a green border, a waiting task by a red border.
 
-You can change the duration of a task by changing the value in the top right corner of the task. Below this is the amount of time the task will remain active. You can change both values by clicking on them and typing in the new value, or by dragging your mouse or finger left and right. You can also change the priority of a task by clicking on the priority value in the bottom right corner and typing in the new value or dragging your mouse or finger left and right.
+The circle in the top right corner of a task shows the remaining duration above the full duration of the task.
+The task priority is shown in the bottom right corner.
 
-To change the value of a mutex, click in the middle of the mutex and type in the new value, or drag your mouse or finger left and right.
+Mutexes simply show their current count.
+
+All these values can be edited by dragging, or by clicking on them.
 
 #### Adding Tasks and Mutexes
-To add a new task, right click on an empty area of the canvas. This adds a new task. If you right click on a task, you can link it to existing mutexes by clicking on the mutex you want to link it to. Clicking on a task will create a mutex between the two tasks.
+You can add a new task by right clicking on an empty area of the canvas.
+Using right click, you can connect existing nodes, or create new nodes that are immediately connected.
+Connections can be deleted the same way they are created.
 
 #### Deleting a Task or Mutex
-To delete a task or mutex, click on 'Edit -> Delete mode' to activate the delete mode. Now you can click on a task or mutex to delete it.
-To exit the delete mode, click on the warning that appears while the delete mode is active.
+To delete a task or mutex, click on `Edit -> Delete mode` to activate the delete mode.
+Now you can click on any node to delete it.
+Exist delete mode using right click, or by clicking the warning at the top of the screen.
 
 ### Simulation Settings
-At the bottom you will find the simulation settings. On the left you can change the speed of the simulation using the slider in the 'ticks per second' bottom left corner. The simulation speed is the number of ticks per second. One tick reduces the remaining time of the active task by one.
+At the bottom you will find the simulation settings.
 
-You can also pause the animation by clicking on the Pause ⏸ button. When the animation is paused, you can use the Single Step button to perform a single tick at a time. This button will schedule a new tick to run which can be seen and edited in the 'Ticks Remaining' file next to a text box with the remaining ticks. You can change the remaining ticks by clicking in the text box and typing in the new value or dragging your mouse or finger left and right. You can also perform a single step by clicking on the 'Single Step' button. You can continue the automatic simulation by clicking Play ▶️.
+The slider on the left changes the simulation speed, and on the very right is a pause button ⏸.
+When the simulation is paused, you can use the `Single Step` button to manually advance the simulation by one tick.
+This button will schedule a new tick, which will then be executed at the configured simulation speed.
+You can see and edited the amount of scheduled ticks left of the `Single Step` button.
 
 ### File Format
-You can import and export your task as a CSV file.
+You can export and import graphs to and from CSV files.
 There are two types of entries in the CSV file `Task` and `Mutex`.
 Task entries take the following format:
 ```csv
@@ -71,3 +88,27 @@ Mutex;300;420;8;1;3
 Mutex;600;250;5;0;6
 Mutex;675;175;3;0;6
 ```
+## Building the Project
+To build the project, you need to have rust installed.
+You can install rust by following the instructions on the [official rust website](https://rustup.rs/).
+
+### Native Build
+```pwsh
+cargo run --release
+```
+This will build the project and start the application.
+
+### Web Assembly Build
+To run the project for the web, you need to have `trunk` installed.
+You can install trunk by running the following command:
+```pwsh
+cargo install trunk
+```
+
+Then start a local webserver using:
+```pwsh
+trunk serve --release
+```
+Once the build is complete, you can open the URL shown by trunk in your browser.
+If you see only a blank or gray screen, try force-reloading the page.
+This can be done by pressing `CTRL` `F5` in most browsers.
