@@ -71,3 +71,24 @@ Mutex;300;420;8;1;3
 Mutex;600;250;5;0;6
 Mutex;675;175;3;0;6
 ```
+## Building the Project
+To build the project, you need to have rust installed. You can install rust by following the instructions on the [official rust website](https://rustup.rs/).
+
+### Native Build
+```pwsh
+cargo run --release
+```
+This will build the project and start the application.
+
+### Web Assembly Build
+To run the project for the web, you need to have `trunk` installed. You can install trunk by running the following command:
+```pwsh
+cargo install trunk
+```
+
+To build and run the project for the web, run the following command:
+```pwsh
+trunk serve --release
+```
+Once the build is complete, you can open the URL shown by trunk in your browser.
+If you see only a blank or grey screen, try force-reload the page. This can be done by pressing `Ctrl + F5` in most browsers.
