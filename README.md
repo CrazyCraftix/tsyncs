@@ -1,42 +1,42 @@
-<img src="assets/Logo.svg" alt="drawing" width="400"/>
+<img src="assets/Logo.svg" alt="tsyncs logo" width="400"/>
 
-A simple viewer and simulator for task charts.
+# Task Synchronisation Simulator
+A simple tool to simulate the execution of interdependent tasks. Try it out at [tsyncs.de](https://tsyncs.de/).
 
 ## Tutorial
+tsyncs provides a convenient way to load and visualise task graphs. At the top is the menu bar. Here you can import and export task charts, save and load your current session, and start a new session. You can also edit the diagram and change the view.
 
-### User Interface
-tsyncs offers a convinient way to load and visualize task charts. At the top you find the menu bar. Here you can import and export task charts, save and load your current session and start a new session. You can also edit the graph and change the View.
 ![UserInterface](assets/UI-Description.png)
 
 ### File Menu
-To load a task select `File -> Import Graph...` and select a CSV file containing the task chart. You can also export the current graph as CSV file by selecting `File -> Export Graph...`.
-You can also Save the current session by selecting `File -> Save Graph...` and load a saved session by selecting `File -> Load Graph`.
+To load a task, select 'File -> Import Graph...' and select a CSV file containing the task graph. You can also export the current graph as a CSV file by choosing `File -> Export Graph...`.
+You can also save the current session by selecting 'File -> Save Graph...' and load a saved session by selecting 'File -> Load Graph'.
 
-To start a new, empty session select `File -> New Graph`.
+To start a new empty session select 'File -> New Graph'.
 
 ### Editing the Graph
-The task chart will be displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
+The task graph is displayed in the main window. You can zoom in and out using the mouse wheel and pan by dragging the mouse. You can also move the tasks by dragging them.
 
-The tasks and mutexes are connected by arrows, which represent the dependencies between the tasks. The arrows are colored based on where the tasks are flowing. A runing task is highlighted by a green border, a waiting task is highlighted with a red boarder.
+The tasks and mutexes are connected by arrows, which represent the dependencies between the tasks. The arrows are coloured according to where the tasks are flowing. A running task is highlighted by a green border, a waiting task by a red border.
 
-You can change the duration of a task by changing the value in the upper right corner of the task. Below that you find the time the task remains active. You can change both values by clicking on them and typing in the new value or dragging your mouse or finger left and right. You can also change the priority of a task by clicking on the priority value on the lower right corner and typing in the new value or dragging your mouse or finger left and right.
+You can change the duration of a task by changing the value in the top right corner of the task. Below this is the amount of time the task will remain active. You can change both values by clicking on them and typing in the new value, or by dragging your mouse or finger left and right. You can also change the priority of a task by clicking on the priority value in the bottom right corner and typing in the new value or dragging your mouse or finger left and right.
 
-If you want to change the value of a mutex by clicking in the middle of the mutex and typing in the new value or dragging your mouse or finger left and right.
+To change the value of a mutex, click in the middle of the mutex and type in the new value, or drag your mouse or finger left and right.
 
 #### Adding Tasks and Mutexes
-To add a new task right click at an empty space in the canvas. This will add a new task. If you right click on a task you can connect it to existing mutexes by clicking on the mutex you want to connect it to. If you click on a task a mutex will be created between the two tasks.
+To add a new task, right click on an empty area of the canvas. This adds a new task. If you right click on a task, you can link it to existing mutexes by clicking on the mutex you want to link it to. Clicking on a task will create a mutex between the two tasks.
 
 #### Deleting a Task or Mutex
-To deleate a task or mutex click go to `Edit -> Delete Mode` to enable the delete mode. Now you can click on a task or mutex to delete it.
-To exit the delete mode click on the Warning that appears if the deleate mode is active.
+To delete a task or mutex, click on 'Edit -> Delete mode' to activate the delete mode. Now you can click on a task or mutex to delete it.
+To exit the delete mode, click on the warning that appears while the delete mode is active.
 
 ### Simulation Settings
-At the bottom you find the simulation settings. On the left you can change the simulation speed by using the slider in the `ticks per second` bottom left corner. The simulation speed represents the number of ticks per second. One tick will reduce the remaining time of the active task by one.
+At the bottom you will find the simulation settings. On the left you can change the speed of the simulation using the slider in the 'ticks per second' bottom left corner. The simulation speed is the number of ticks per second. One tick reduces the remaining time of the active task by one.
 
-You can also pause the animation by clicking the Pause ⏸ button. If the animation is paused, you can run a Single Tick with the `Single Step` button. This button scheddules a new Tick to run which can be seen and eddited in the `ticks remaining` filed next  a text field with the remaining ticks will be displayed. You can change the remaining ticks by clicking on the text field and typing in the new value or dragging your mouse or finger left and right. You can also run a single tick by clicking the `Single Step` button. By clicking Play ▶️ you can continue the automatic simulation.
+You can also pause the animation by clicking on the Pause ⏸ button. When the animation is paused, you can use the Single Step button to perform a single tick at a time. This button will schedule a new tick to run which can be seen and edited in the 'Ticks Remaining' file next to a text box with the remaining ticks. You can change the remaining ticks by clicking in the text box and typing in the new value or dragging your mouse or finger left and right. You can also perform a single step by clicking on the 'Single Step' button. You can continue the automatic simulation by clicking Play ▶️.
 
-### File format
-You can Import and Export your task as CSV files. The CSV file has the following header:
+### File Format
+You can import and export your task as a CSV file. The CSV file must have the following header
 ```csv
 Type; ID; Parameters
 ```
