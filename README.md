@@ -37,7 +37,7 @@ You can also pause the animation by clicking on the Pause ⏸ button. When the a
 
 ### File Format
 You can import and export your task as a CSV file.
-There are two types for entries in the CSV file `Task` and `Mutex`.
+There are two types of entries in the CSV file `Task` and `Mutex`.
 Task entries take the following format:
 ```csv
 Task; Position X; Position Y; ID; Task-Name; Activity-Name; Priority; Duration; Remaining Duration; [Semicolon seperated list of Connected Mutex IDs]
