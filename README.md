@@ -36,12 +36,8 @@ At the bottom you will find the simulation settings. On the left you can change 
 You can also pause the animation by clicking on the Pause ⏸ button. When the animation is paused, you can use the Single Step button to perform a single tick at a time. This button will schedule a new tick to run which can be seen and edited in the 'Ticks Remaining' file next to a text box with the remaining ticks. You can change the remaining ticks by clicking in the text box and typing in the new value or dragging your mouse or finger left and right. You can also perform a single step by clicking on the 'Single Step' button. You can continue the automatic simulation by clicking Play ▶️.
 
 ### File Format
-You can import and export your task as a CSV file. The CSV file must have the following header
-```csv
-Type; ID; Parameters
-```
+You can import and export your task as a CSV file.
 There are two types for entries in the CSV file `Task` and `Mutex`.
-
 Task entries take the following format:
 ```csv
 Task; Position X; Position Y; ID; Task-Name; Activity-Name; Priority; Duration; Remaining Duration; [Semicolon seperated list of Connected Mutex IDs]
@@ -55,7 +51,7 @@ Mutex; Position X; Position Y; ID; Mutex Value; [Semicolon seperated list of Con
 #### Example CSV file
 ```csv
 Type;Position X;Position Y;ID;Parameters...
-"Task";Position X;Position Y;ID;Task Name;Activity Name;Priority;Duration;Remaining Duration;[Semicolon seperated list of Connected Mutex IDs]
+#Task;Position X;Position Y;ID;Task Name;Activity Name;Priority;Duration;Remaining Duration;[Semicolon seperated list of Connected Mutex IDs]
 Task;300;100;0;Task 2;Activity 2;0;3;0;0;2
 Task;150;250;1;Task 1;Activity 1;0;3;0;1;4
 Task;150;400;2;Task 5;Activity 5b;0;1;0;7;8
@@ -63,7 +59,7 @@ Task;450;400;3;Task 5;Activity 5a;0;2;0;9
 Task;450;250;4;Task 3;Activity 3;0;2;0;2;5
 Task;600;100;5;Task 4;Activity 4;0;3;0;2;3
 Task;750;250;6;Task 6;Activity 6;0;3;0;6
-"Mutex";Position X;Position Y;ID;Mutex Value;[Semicolon seperated list of Connected Task IDs]
+#Mutex;Position X;Position Y;ID;Mutex Value;[Semicolon seperated list of Connected Task IDs]
 Mutex;225;175;1;0;0
 Mutex;300;380;9;0;2
 Mutex;150;325;7;0;1
