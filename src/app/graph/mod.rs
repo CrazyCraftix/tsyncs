@@ -5,7 +5,7 @@ mod mutex_node;
 pub use activity_node::ActivityNode;
 use egui::{emath::TSTransform, Pos2};
 pub use mutex_node::MutexNode;
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng as _, SeedableRng as _};
 use random_word::Lang;
 
 use self::connection::Direction;
@@ -543,17 +543,13 @@ impl Graph {
                 match activity_node_1.priority.cmp(&activity_node_2.priority) {
                     // randomize if priority is the same
                     std::cmp::Ordering::Equal => {
-                        // random bool based on base_seed, constant for every node pair
-                        let random_bool = (base_seed.wrapping_pow((*id_1 + *id_2) as u32) & 1) == 0;
-
-                        // flip if id_1 < id_2, so cmp(a, b) is always the opposite of cmp(b, a)
-                        // --> there is a consistent order between all nodes for a given base_seed
-                        let node_1_is_greater = random_bool ^ (*id_1 < *id_2);
-
-                        match node_1_is_greater {
-                            true => std::cmp::Ordering::Greater,
-                            false => std::cmp::Ordering::Less,
-                        }
+                        let random_1 =
+                            rand::rngs::StdRng::seed_from_u64(base_seed.wrapping_add(*id_1 as u64))
+                                .gen::<u64>();
+                        let random_2 =
+                            rand::rngs::StdRng::seed_from_u64(base_seed.wrapping_add(*id_2 as u64))
+                                .gen::<u64>();
+                        random_1.cmp(&random_2)
                     }
                     ordering => ordering,
                 }
